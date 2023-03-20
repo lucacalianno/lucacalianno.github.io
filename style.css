@@ -1,0 +1,78 @@
+* {
+  box-sizing: border-box;
+font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
+body {
+  margin: 0;
+}
+
+/* Create three unequal columns that floats next to each other */
+.column {
+  float: left;
+  padding: 10px;
+}
+
+/* Left and right column */
+.column.side {
+  width: 25%;
+}
+
+/* Middle column */
+.column.middle {
+  width: 50%;
+}
+
+.column.middle a{
+  font-size: small;
+  text-decoration: none;
+  float: right;
+  color: black;
+}
+
+.column.middle a.l1{
+margin: 10px;
+}
+
+.column.middle a.l2{
+margin: 10px;
+}
+
+.column.middle a.l3{
+  margin: 10px;
+}
+
+.column.middle a.cv{
+  font-size: medium;
+  text-decoration: underline;
+  float: none;
+  color: blue;
+}
+
+
+
+/* Clear floats after the columns */
+.row::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 600px) {
+  .column.side, .column.middle {
+    width: 100%;
+  }
+}
+
+hr {
+  border-top: 1px solid #bbb;
+}
+
+img.me {
+  float: right;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px;
+  width: 150px;
+}
