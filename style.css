@@ -76,3 +76,12 @@ img.me {
   padding: 5px;
   width: 150px;
 }
+
+
+.footer{ 
+  position: fixed;     
+  text-align: center;  
+  font-size: small;  
+  bottom: 0px; 
+  width: 100%;
+}  
