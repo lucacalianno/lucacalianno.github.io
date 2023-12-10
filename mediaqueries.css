@@ -100,4 +100,20 @@
     .text-container {
       text-align: justify;
     }
+    #profile{
+      margin-bottom: 100px;
+    }
+    .btn-about{
+      width: 40%;
+    }
+    .project-content{
+      margin-top: 10px;
+    }
+    .project-content img{
+      display: none;
+    }
+    .contact-info-upper-container button{
+      width: 40%;
+    }
+
   }

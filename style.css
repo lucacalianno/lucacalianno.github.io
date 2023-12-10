@@ -192,7 +192,9 @@ section{
   justify-content: center;
   gap: 5rem;
   height: 80vh;
+  margin-bottom: 20px;
 }
+
 
 
 /*research*/
@@ -272,6 +274,7 @@ section{
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  max-width: ;
 }
 
 button{
