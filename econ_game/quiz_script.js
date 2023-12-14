@@ -43,7 +43,7 @@ const quizData = [
       "The cost of production decreases with each additional unit of input."
     ],
     "answer": "As production increases, each additional unit of input adds less to total output."
-  }
+  },
   // Macroeconomics
 // GDP
   // Econometrics
