@@ -16,8 +16,34 @@ const quizData = [
     ],
     "answer": "A market with only one seller."
   },
-  // elasticty of demand
-  // marginal returns
+  {
+    "question": "Monopoly prices are higher than competitive prices",
+    "options": [
+      "TRUE",
+      "FALSE"
+    ],
+    "answer": "TRUE"
+  },
+  {
+    "question": "What is elasticity of demand?",
+    "options": [
+      "The % change in quantity demanded divided by the % change in price.",
+      "The % change in quantity demanded multiplied by the % change in price.",
+      "A measure of how much the quantity demanded of a good responds to changes in consumer income.",
+      "The total revenue earned by producers from selling a good"
+    ],
+    "answer": "The % change in quantity demanded divided by the % change in price."
+  },
+  {
+    "question": "Diminishing marginal returns:",
+    "options": [
+      "As production increases, each additional unit of input adds more to total output.",
+      "As production increases, each additional unit of input adds less to total output.",
+      "The total output remains constant as additional units of input are added.",
+      "The cost of production decreases with each additional unit of input."
+    ],
+    "answer": "As production increases, each additional unit of input adds less to total output."
+  }
   // Macroeconomics
 // GDP
   // Econometrics
@@ -25,6 +51,26 @@ const quizData = [
     question: 'Under Gauss-Markov assumptions, The OLS Estimator is:',
     options: ['BLUE', 'RED', 'GREEN', 'PURPLE'],
     answer: 'BLUE',
+  },
+  {
+    question: 'I am estimating: log(Y)= b0 + b1*X + u; how should I interpret b1?',
+    options: [
+      'The change in Y if X increases by 1 unit', 
+      'The change in Y if X increases by 1 percent', 
+      'The percent change in Y if X increases by 1 unit', 
+      'The percent change in Y if X increases by 1 percent', 
+    ],
+    answer: 'The percent change in Y if X increases by 1 unit',
+  },
+  {
+    question: 'I am estimating: log(Y)= b0 + b1*log(X) + u; how should I interpret b1?',
+    options: [
+      'The change in Y if X increases by 1 unit', 
+      'The change in Y if X increases by 1 percent', 
+      'The percent change in Y if X increases by 1 unit', 
+      'The percent change in Y if X increases by 1 percent', 
+    ],
+    answer: 'The percent change in Y if X increases by 1 percent',
   },
   {
     "question": "What is heteroscedasticity.",
@@ -35,6 +81,27 @@ const quizData = [
       "A measure of the strength of the relationship between two variables."
     ],
     "answer": "The error terms have non-constant variance.",
+  },
+  {
+    question: 'Consider the following models: \
+    (1) y = a0 + a1*w + x*a2 + u \
+    (2) y = b0 + b1*w + x*b2 + w*(x - xbar)*b3 + v \
+    If b3 != 0 and E(v|w,x) = 0, the OLS estimates the:'
+    options: [
+      'ATE', 
+      'ATT', 
+      'ATU', 
+      'LATE', 
+    ],
+    answer: 'ATE',
+  },
+  {
+    question: 'In an RCT, then ATE = ATT= ATU'
+    options: [
+      'TRUE', 
+      'FALSE', 
+    ],
+    answer: 'TRUE',
   },
 ];
   
