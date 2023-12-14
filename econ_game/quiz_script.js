@@ -78,7 +78,7 @@ const quizData = [
       "The error term has constant variance",
       "The error terms have non-constant variance.",
       "A statistical technique to handle multicollinearity.",
-      "A measure of the strength of the relationship between two variables."
+      "A measure of the strength of the relationship between two variables.",
     ],
     "answer": "The error terms have non-constant variance.",
   },
@@ -86,7 +86,7 @@ const quizData = [
     question: 'Consider the following models: \
     (1) y = a0 + a1*w + x*a2 + u \
     (2) y = b0 + b1*w + x*b2 + w*(x - xbar)*b3 + v \
-    If b3 != 0 and E(v|w,x) = 0, the OLS estimates the:'
+    If b3 != 0 and E(v|w,x) = 0, the OLS estimates the:',
     options: [
       'ATE', 
       'ATT', 
@@ -96,7 +96,7 @@ const quizData = [
     answer: 'ATE',
   },
   {
-    question: 'In an RCT, then ATE = ATT= ATU'
+    question: 'In an RCT, then ATE = ATT= ATU',
     options: [
       'TRUE', 
       'FALSE', 
