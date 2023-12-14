@@ -192,7 +192,6 @@ section{
   justify-content: center;
   gap: 5rem;
   height: 80vh;
-  margin-bottom: 20px;
 }
 
 
@@ -201,7 +200,7 @@ section{
 
 #research {
   background-color: #f8f4f4;
-  padding: 20px;
+  padding: 30px;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
