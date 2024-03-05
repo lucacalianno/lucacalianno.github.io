@@ -204,44 +204,11 @@ section{
   width: 100%;
   box-sizing: border-box;
   margin: 0;
+  height: fit-content;
 }
 
 .title {
   margin-bottom: 20px; /* Add space between the title and the first box */
-}
-
-.project-box {
-  border: 1px solid #ddd;
-  padding: 20px;
-  margin-bottom: 20px;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.project-content {
-  display: flex;
-  align-items: flex-start; /* Align items at the start of the cross axis (top-aligned) */
-}
-
-.project-content img {
-  max-width: 30%;
-  height: auto;
-  margin-right: 20px; /* Adjust the margin as needed between the image and text */
-}
-
-.project-content p {
-  text-align: justify;
-  white-space: pre-line;
-  margin: 0; /* Remove default margin for the paragraph */
-}
-
-/* Adjust styles as needed for the project boxes */
-.project-box h2 {
-  color: #333;
-}
-
-.project-box p {
-  color: #666;
 }
 
 .basic_a{
