@@ -44,6 +44,26 @@ const quizData = [
     ],
     "answer": "As production increases, each additional unit of input adds less to total output."
   },
+    {
+    "question": "When a good is said to be inferior?",
+    "options": [
+      "When the price of the good increases, demand for the good decreases",
+      "When the income of the consumer increases, her demand for the good decreases",
+      "When the income of the consumer increases, her demand for the good increases",
+      "When the price of the good increases, demand for the good increases",
+    ],
+    "answer": "When the income of the consumer increases, her demand for the good decreases"
+  },
+      {
+    "question": "How can we summarize the first welfare theorem?",
+    "options": [
+      "Demand is decreasing",
+      "Demand equals supply in equilibrium",
+      "A competitive equilibrium is Pareto efficient",
+      "Any Pareto efficient allocation can be achieved with transfers",
+    ],
+    "answer": "A competitive allocation is Pareto efficient"
+  },
   // Macroeconomics
 // GDP
   // Econometrics

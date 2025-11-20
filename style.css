@@ -1,84 +1,59 @@
-/* GENERAL */
+/* ---------- GENERAL ---------- */
+
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap");
 
 * {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
 }
 
 body {
   font-family: "Poppins", sans-serif;
+  color: rgb(53, 53, 53);
 }
 
 html {
   scroll-behavior: smooth;
 }
 
-p {
-  color: rgb(53, 53, 53);
-}
-.container {
-  width: 100%;            /* Occupy full width on small screens */
-  max-width: 1200px;      /* STOP growing after 1200px */
-  margin: 0 auto;         /* Center the container horizontally */
-  padding: 0 20px;        /* Add some breathing room on the sides */
-}
-/* TRANSITION */
-
 a,
-.btn {
-  transition: all 300ms ease;
+button {
+  transition: 300ms ease;
+  text-decoration: none;
+  color: black;
 }
 
-/* DESKTOP NAV */
 
-nav,
-.nav-links {
-  display: flex;
-}
+/* ---------- NAVIGATION ---------- */
 
 nav {
   display: flex;
-  justify-content: space-between; /* Pushes items to edges of the container */
+  justify-content: space-between;
   align-items: center;
   height: 17vh;
-  
-  /* FIX FOR BIG SCREENS */
   width: 100%;
-  max-width: ; /* Stops the nav from growing beyond 1200px */
-  margin: 0 auto;    /* Centers the nav in the middle of the screen */
-  padding: 0 2rem;   /* Adds safety padding on smaller screens */
-  box-sizing: border-box; /* Ensures padding doesn't break the width */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
 }
 
 .nav-links {
+  display: flex;
   gap: 2rem;
   list-style: none;
   font-size: 1.5rem;
 }
 
-a {
-  color: black;
-  text-decoration: none;
-  text-decoration-color: white;
-}
-
 a:hover {
   color: grey;
   text-decoration: underline;
-  text-underline-offset: 1rem;
-  text-decoration-color: rgb(181, 181, 181);
+  text-underline-offset: 0.7rem;
 }
 
 .logo {
   font-size: 2rem;
 }
-
-.logo:hover {
-  cursor: default;
-}
-
-/*Hamburger*/
 
 #hamburger-nav {
   display: none;
@@ -86,7 +61,6 @@ a:hover {
 
 .hamburger-menu {
   position: relative;
-  display: inline-block;
 }
 
 .hamburger-icon {
@@ -99,227 +73,169 @@ a:hover {
 }
 
 .hamburger-icon span {
-  width: 100%;
   height: 2px;
-  background-color: black;
-  transition: all 0.3 ease-in-out;
+  background: black;
+  width: 100%;
+  transition: 0.3s;
+}
+
+/* Open state */
+.hamburger-icon.open span:first-child {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+.hamburger-icon.open span:nth-child(2) {
+  opacity: 0;
+}
+.hamburger-icon.open span:last-child {
+  transform: rotate(-45deg) translate(5px, -5px);
 }
 
 .menu-links {
   position: absolute;
   top: 100%;
   right: 0;
-  background-color: white;
-  width: fit-content;
-  max-height: 0;
+  background: white;
   overflow: hidden;
-  transition: all 0.3 ease-in-out;
-}
-
-.menu-links a {
-  display: block;
-  padding: 10px;
-  text-align: center;
-  font-size: 1.5rem;
-  color: black;
-  text-decoration: none;
-  transition: all 0.3 ease-in-out;
-}
-
-.menu-links li {
-  list-style: none;
+  max-height: 0;
+  transition: 0.3s;
 }
 
 .menu-links.open {
   max-height: 300px;
 }
 
-.hamburger-icon.open span:first-child {
-  transform: rotate(45deg) translate(10px, 5px);
-}
-
-.hamburger-icon.open span:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger-icon.open span:last-child {
-  transform: rotate(-45deg) translate(10px, -5px);
-}
-
-.hamburger-icon span:first-child {
-  transform: none;
-}
-
-.hamburger-icon span:first-child {
-  opacity: 1;
-}
-
-.hamburger-icon span:first-child {
-  transform: none;
+.menu-links a {
+  display: block;
+  padding: 10px;
+  font-size: 1.5rem;
 }
 
 
-/*section*/
+/* ---------- SECTIONS ---------- */
+
 section {
-  padding-top: 4vh;
-  height: 96vh; /* Careful with this, strictly forcing height can cause overlap on small screens */
-  min-height: fit-content;
-  box-sizing: border-box;
-  
-  /* FIX FOR BIG SCREENS */
-  width: 100%;        /* Take up available space... */
-  max-width: 1200px;  /* ...but STOP growing at 1200px */
-  margin: 0 auto;     /* Center the section horizontally */
-  padding-left: 2rem; /* Use padding instead of margin for side spacing */
-  padding-right: 2rem;
+  width: 100%;
+  padding: 4vh 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Your existing CSS rules */
+
+/* ---------- PROFILE SECTION ---------- */
+
+#profile {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;   /* moves picture + text UP */
+  gap: 5rem;
+  min-height: 100vh;
+  padding-top: 10rem;         /* adjust this value as you prefer */
+  flex-wrap: nowrap;
+}
+
+
+
 
 .section__pic-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: 250px;
   width: 250px;
-  margin: auto;
-  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   border-radius: 50%;
-  min-width: 250px;
-  max-width: 100%;
-  max-height: 100%;
+  overflow: hidden;
 }
 
 .section__pic-container img {
-  width: auto;
   height: 100%;
-  max-height: 100%;
   border-radius: 50%;
 }
 
-
-
-.section__text{
-  align-self: center;
+.section__text {
+  max-width: ;
+  text-align: justify;
   font-size: 1rem;
-  text-justify: auto;
-  margin-bottom: 1rem;
-}
-
-#profile{
-  display: flex;
-  justify-content: center;
-  gap: 5rem;
-  height: 80vh;
 }
 
 
-
-/*research*/
+/* ---------- RESEARCH SECTION ---------- */
 
 #research {
-  background-color: #f8f4f4;
-  padding: 30px;
+  background: #f8f4f4;
   width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  height: fit-content;
+  max-width: none;
+  padding: 40px 5vw;
 }
 
 .title {
-  margin-bottom: 20px; /* Add space between the title and the first box */
+  margin-bottom: 1.5rem;
 }
 
-.basic_a{
+.basic_a {
   color: blue;
   text-decoration: underline;
-  text-decoration-color: blue;
-}
-
-.basic_a:hover {
-  color: blue;
-  text-decoration: underline;
-  text-underline-offset: 0rem;
-  text-decoration-color:blue;
 }
 
 
-/*button*/
+/* ---------- BUTTONS ---------- */
 
-.btn-about{
+button,
+.btn-about {
   width: 200px;
   padding: 15px 0;
-  text-align: center;
   margin: 20px 10px;
   border-radius: 25px;
-  font-weight: bold;
-  border: 0.5px solid rgb(53, 53, 53); /*this color is to be changed*/
+  border: 0.5px solid rgb(53, 53, 53);
   background: transparent;
-  color: black;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  max-width: ;
-}
-
-button{
-  width: 200px;
-  padding: 15px 0;
-  text-align: center;
-  margin: 20px 10px;
-  border-radius: 25px;
   font-weight: bold;
-  border: 0.5px solid rgb(53, 53, 53); /*this color is to be changed*/
-  background: transparent;
-  color: black;
-  cursor: pointer;
   position: relative;
+  cursor: pointer;
   overflow: hidden;
 }
 
 .btn-span {
+  position: absolute;
   height: 100%;
   width: 0;
-  border-radius: 25px;
-  position: absolute;
   left: 0;
   bottom: 0;
   z-index: -1;
+  background: rgb(53, 53, 53);
   transition: 0.5s;
 }
 
 button:hover .btn-span {
   width: 100%;
-  background: rgb(53, 53, 53);
 }
 
 button:hover {
   color: white;
-  border: none;
+  border-color: transparent;
 }
 
 
+/* ---------- CONTACT SECTION ---------- */
 
-/*contact section*/
-
-#contact{
-  padding: 30px;
+#contact {
+  max-width: none;
   width: 100%;
-  margin: 0;
+  padding: 40px 5vw;
 }
 
 .contact-info-upper-container {
   display: flex;
   justify-content: center;
+  gap: 2rem;
 }
 
 
+/* ---------- RESPONSIVE ---------- */
 
-#research,
-#contact {
-  max-width: none !important;
-  width: 100%;
-  padding: 40px 5vw;
+@media (max-width: 900px) {
+  #profile {
+    flex-direction: column;
+    text-align: center;
+    gap: 2rem;
+  }
 }
-
 
