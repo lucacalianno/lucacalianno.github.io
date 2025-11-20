@@ -33,9 +33,17 @@ nav,
 }
 
 nav {
-  justify-content: space-around;
+  display: flex;
+  justify-content: space-between; /* Pushes items to edges of the container */
   align-items: center;
   height: 17vh;
+  
+  /* FIX FOR BIG SCREENS */
+  width: 100%;
+  max-width: ; /* Stops the nav from growing beyond 1200px */
+  margin: 0 auto;    /* Centers the nav in the middle of the screen */
+  padding: 0 2rem;   /* Adds safety padding on smaller screens */
+  box-sizing: border-box; /* Ensures padding doesn't break the width */
 }
 
 .nav-links {
@@ -147,12 +155,18 @@ a:hover {
 
 
 /*section*/
-section{
+section {
   padding-top: 4vh;
-  height: 96vh;
-  margin: 0 10rem;
-  box-sizing: border-box;
+  height: 96vh; /* Careful with this, strictly forcing height can cause overlap on small screens */
   min-height: fit-content;
+  box-sizing: border-box;
+  
+  /* FIX FOR BIG SCREENS */
+  width: 100%;        /* Take up available space... */
+  max-width: 1200px;  /* ...but STOP growing at 1200px */
+  margin: 0 auto;     /* Center the section horizontally */
+  padding-left: 2rem; /* Use padding instead of margin for side spacing */
+  padding-right: 2rem;
 }
 
 /* Your existing CSS rules */
@@ -296,5 +310,11 @@ button:hover {
 
 
 
+#research,
+#contact {
+  max-width: none !important;
+  width: 100%;
+  padding: 40px 5vw;
+}
 
 
