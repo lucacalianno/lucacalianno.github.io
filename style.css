@@ -11,17 +11,26 @@
 body {
   font-family: "Poppins", sans-serif;
   color: rgb(53, 53, 53);
+  background: white;
 }
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 1rem;
 }
 
-a,
-button {
+a {
   transition: 300ms ease;
   text-decoration: none;
   color: black;
+}
+
+@media (hover: hover) {
+  a:hover {
+    color: grey;
+    text-decoration: underline;
+    text-underline-offset: 0.7rem;
+  }
 }
 
 
@@ -31,11 +40,16 @@ nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 17vh;
+  gap: 1rem;
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 2rem;
+}
+
+.logo {
+  font-size: 2rem;
+  white-space: nowrap;
 }
 
 .nav-links {
@@ -45,79 +59,12 @@ nav {
   font-size: 1.5rem;
 }
 
-a:hover {
-  color: grey;
-  text-decoration: underline;
-  text-underline-offset: 0.7rem;
-}
-
-.logo {
-  font-size: 2rem;
-}
-
-#hamburger-nav {
-  display: none;
-}
-
-.hamburger-menu {
-  position: relative;
-}
-
-.hamburger-icon {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 24px;
-  width: 30px;
-  cursor: pointer;
-}
-
-.hamburger-icon span {
-  height: 2px;
-  background: black;
-  width: 100%;
-  transition: 0.3s;
-}
-
-/* Open state */
-.hamburger-icon.open span:first-child {
-  transform: rotate(45deg) translate(5px, 5px);
-}
-.hamburger-icon.open span:nth-child(2) {
-  opacity: 0;
-}
-.hamburger-icon.open span:last-child {
-  transform: rotate(-45deg) translate(5px, -5px);
-}
-
-.menu-links {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  overflow: hidden;
-  max-height: 0;
-  transition: 0.3s;
-}
-
-.menu-links.open {
-  max-height: 300px;
-}
-
-.menu-links a {
-  display: block;
-  padding: 10px;
-  font-size: 1.5rem;
-}
-
 
 /* ---------- SECTIONS ---------- */
 
 section {
   width: 100%;
-  padding: 4vh 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 4rem 2rem;
 }
 
 
@@ -126,35 +73,31 @@ section {
 #profile {
   display: flex;
   justify-content: center;
-  align-items: flex-start;   /* moves picture + text UP */
+  align-items: center;
   gap: 5rem;
-  min-height: 100vh;
-  padding-top: 10rem;         /* adjust this value as you prefer */
-  flex-wrap: nowrap;
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: 70vh;
 }
 
-
-
-
 .section__pic-container {
-  height: 250px;
-  width: 250px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-shrink: 0;
+  height: 320px;
+  width: 320px;
   border-radius: 50%;
   overflow: hidden;
 }
 
 .section__pic-container img {
   height: 100%;
-  border-radius: 50%;
+  width: 100%;
+  object-fit: cover;
 }
 
 .section__text {
-  max-width: ;
-  text-align: justify;
-  font-size: 1rem;
+  max-width: 560px;
+  font-size: 1.15rem;
+  line-height: 1.7;
 }
 
 
@@ -162,13 +105,11 @@ section {
 
 #research {
   background: #f8f4f4;
-  width: 100%;
-  max-width: none;
-  padding: 40px 5vw;
 }
 
 .title {
-  margin-bottom: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto 1.5rem;
 }
 
 .basic_a {
@@ -179,63 +120,115 @@ section {
 
 /* ---------- BUTTONS ---------- */
 
-button,
-.btn-about {
-  width: 200px;
-  padding: 15px 0;
-  margin: 20px 10px;
-  border-radius: 25px;
-  border: 0.5px solid rgb(53, 53, 53);
-  background: transparent;
-  font-weight: bold;
-  position: relative;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.btn-span {
-  position: absolute;
-  height: 100%;
-  width: 0;
-  left: 0;
-  bottom: 0;
-  z-index: -1;
-  background: rgb(53, 53, 53);
-  transition: 0.5s;
-}
-
-button:hover .btn-span {
-  width: 100%;
-}
-
-button:hover {
-  color: white;
-  border-color: transparent;
-}
-
-
-/* ---------- CONTACT SECTION ---------- */
-
-#contact {
-  max-width: none;
-  width: 100%;
-  padding: 40px 5vw;
+.btn-container,
+.contact-info-upper-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
 .contact-info-upper-container {
-  display: flex;
   justify-content: center;
-  gap: 2rem;
+}
+
+.btn {
+  display: inline-block;
+  min-width: 180px;
+  padding: 14px 24px;
+  border-radius: 25px;
+  border: 1px solid rgb(53, 53, 53);
+  font-weight: 600;
+  text-align: center;
+  color: black;
+}
+
+@media (hover: hover) {
+  .btn:hover {
+    background: rgb(53, 53, 53);
+    color: white;
+    text-decoration: none;
+  }
+}
+
+.btn:active {
+  background: rgb(53, 53, 53);
+  color: white;
 }
 
 
 /* ---------- RESPONSIVE ---------- */
 
+/* Tablets and small laptops */
 @media (max-width: 900px) {
   #profile {
     flex-direction: column;
-    text-align: center;
-    gap: 2rem;
+    gap: 2.5rem;
+    min-height: 0;
+    padding-top: 2rem;
+  }
+
+  .section__pic-container {
+    width: 260px;
+    height: 260px;
+  }
+
+  .btn-container {
+    justify-content: center;
   }
 }
 
+/* Phones */
+@media (max-width: 600px) {
+  nav {
+    padding: 1.25rem 1rem;
+  }
+
+  .logo {
+    font-size: 1.4rem;
+  }
+
+  .nav-links {
+    gap: 1.25rem;
+    font-size: 1rem;
+  }
+
+  section {
+    padding: 3rem 1rem;
+  }
+
+  #profile {
+    gap: 2rem;
+    padding-top: 1rem;
+  }
+
+  .section__pic-container {
+    width: 200px;
+    height: 200px;
+  }
+
+  .section__text {
+    font-size: 1rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .logo {
+    font-size: 1.15rem;
+  }
+
+  .nav-links {
+    gap: 0.75rem;
+    font-size: 0.9rem;
+  }
+}

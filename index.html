@@ -2,40 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Luca Calianno</title>
+    <meta name="description" content="Luca Calianno, economics PhD student at Stockholm University, interested in development and education." />
     <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="mediaqueries.css" />
   </head>
   <body>
-    <nav id="desktop-nav">
+    <nav>
       <div class="logo">Luca Calianno</div>
-      <div>
-        <ul class="nav-links">
-<!--      <li><a href="#about">About</a></li>-->
-          <li><a href="#research">Research</a></li>
-          <li><a href="#contact">Contact</a></li>
-        </ul>
-      </div>
-    </nav>
-    <nav id="hamburger-nav">
-      <div class="logo">Luca Calianno</div>
-      <div class="hamburger-menu">
-        <div class="hamburger-icon" onclick="toggleMenu()">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div class="menu-links">
-          <li><a href="#research" onclick="toggleMenu()">Research</a></li>
-          <li><a href="#contact" onclick="toggleMenu()">Contact</a></li>
-        </div>
-      </div>
+      <ul class="nav-links">
+<!--    <li><a href="#about">About</a></li>-->
+        <li><a href="#research">Research</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
     </nav>
     <section id="profile">
           <div class="section__pic-container">
-            <img src="media/me_round.jpg" alt="Myself">
+            <img src="media/me_round.jpg" alt="Portrait of Luca Calianno">
           </div>
           <div class="section__text">
             <p>Hello!</p> 
@@ -44,8 +27,10 @@
             <p>I am interested in topics related to development and education.</p>
             <!--<p>My research interests lie at the intersection of the economics of education and the psychological, emotional, and cognitive dimensions of human development. </p>-->
             <p>Feel free to reach out if you'd like to connect or discuss related topics.</p>
-            <button class="btn-about" onclick="window.open('media/CV_Calianno.pdf')"><span class="btn-span"></span>My CV</button>
-            <button class="btn-about" onclick="location.href='#contact'"><span class="btn-span"></span>Contact</button>
+            <div class="btn-container">
+              <a class="btn" href="media/CV_Calianno.pdf" target="_blank" rel="noopener">My CV</a>
+              <a class="btn" href="#contact">Contact</a>
+            </div>
            </div>
     </section>
     <section id="research">
@@ -62,15 +47,13 @@
           </p>
 --> 
 <p></p>
-        </li> 
-      </ul> 
     </section>
     
     <section id="contact">
       <h1 class="title">Contact Me</h1>
       <div class="contact-info-upper-container">
-          <button type="button" onclick="location.href='mailto:luca.calianno99@gmail.com'"><span class="btn-span"></span>Email</button>
-          <button type="button" onclick="window.open('https://www.linkedin.com/in/lucacalianno/')"><span class="btn-span"></span>Linkedin</button>
+          <a class="btn" href="mailto:luca.calianno99@gmail.com">Email</a>
+          <a class="btn" href="https://www.linkedin.com/in/lucacalianno/" target="_blank" rel="noopener">Linkedin</a>
       </div>
       
 <!-- Cal inline embed code begins 
@@ -91,6 +74,5 @@ Cal("init", "30min", {origin:"https://app.cal.com"});
 
 
     </section>
-  <script src="script.js"></script>
 </body>
 </html>
