@@ -60,6 +60,12 @@ th { font-weight: 600; color: var(--muted); }
 .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; }
 .warn { color: var(--C); font-weight: 600; }
 .cA { color: var(--A); } .cB { color: var(--B); } .cC { color: var(--C); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.presets button { font-size: 0.85rem; padding: 3px 9px; }
+.flags div { font-size: 0.9rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--B); border-radius: 6px; padding: 4px 10px; margin-bottom: 6px; }
+.flags div.w { border-left-color: var(--C); }
+.tw { overflow-x: auto; }
+.ok { color: var(--B); font-weight: 600; } .bad { color: var(--C); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -74,11 +80,12 @@ th { font-weight: 600; color: var(--muted); }
     <select id="util"></select>
     <div class="formula" id="utilForm"></div>
     <div id="params"></div>
+    <div class="hint" id="paramNote"></div>
   </fieldset>
 
   <fieldset>
     <legend>Starting point (prices p)</legend>
-    <label class="radio"><input type="radio" name="mode" value="M" checked> Given income <i>M</i> (start from x(p, M))</label>
+    <label class="radio"><input type="radio" name="mode" value="M" checked> Given income <i>M</i> (start from D(p, M))</label>
     <label class="radio"><input type="radio" name="mode" value="u"> Given utility <i>ū</i> (start from h(p, ū))</label>
     <div id="startCtl"></div>
   </fieldset>
@@ -107,6 +114,7 @@ th { font-weight: 600; color: var(--muted); }
     <button data-step="3">3 · Cheque taken back</button>
   </div>
   <div class="caption" id="caption"></div>
+  <div class="flags" id="flags"></div>
   <svg id="plot" viewBox="0 0 660 560" role="img" aria-label="Budget lines, indifference curves and bundles A, B and C"></svg>
   <div class="legend" id="legend"></div>
   <div class="cards" id="cards"></div>
@@ -131,7 +139,14 @@ function fd(x) { // derivatives: 4 significant digits
   if (Math.abs(x) < 1e-8) return '0';
   return Number(x.toPrecision(4)).toString().replace('-', '−');
 }
+function fu(x) { // like f, but very small or large numbers (e.g. CES utilities with δ < 0) in scientific form
+  if (!isFinite(x) || x === 0 || (Math.abs(x) >= 0.01 && Math.abs(x) < 1e7)) return f(x);
+  const [m, e] = x.toExponential(3).split('e');
+  return `${Number(m)}·10<sup>${+e}</sup>`.replace(/-/g, '−');
+}
 function fs(x) { const s = f(x); return (x > 0 && s !== '0') ? '+' + s : s; }
+const roundU = u => +u.toPrecision(5);
+const sameU = (u, w) => Math.abs(u - w) <= 1e-9 * (Math.abs(u) + Math.abs(w));
 function fp(x) { return x < 0 ? '(' + f(x) + ')' : f(x); }
 const b = s => `<b>${s}</b>`;
 
@@ -139,6 +154,17 @@ const b = s => `<b>${s}</b>`;
 // Each: u(x,P), marshall(p1,p2,M,P), hicks(p1,p2,u,P), ic(u,x1,P) or icPoly, theory, mCalc, hCalc, uCalc
 const cesOne = P => Math.abs(P.s - 1) < 1e-9;
 const cesD = (p1, p2, P) => Math.pow(P.a, P.s) * Math.pow(p1, 1 - P.s) + Math.pow(1 - P.a, P.s) * Math.pow(p2, 1 - P.s);
+// CES (δ): u = x₁^δ/δ + x₂^δ/δ, log limit at δ = 0, corner for δ ≥ 1
+const cesLog = P => Math.abs(P.d) < 1e-6;
+const cesCorner = P => P.d >= 1;
+const cesS = (p1, p2, P) => { const r = P.d / (P.d - 1); return Math.pow(p1, r) + Math.pow(p2, r); };
+const cesPick = (p1, p2, P, k1, k2, tie) => Math.abs(p1 - p2) < 1e-12 ? (Math.abs(P.d - 1) < 1e-12 ? tie : [k1, 0]) : (p1 < p2 ? [k1, 0] : [0, k2]);
+const cesCross = P => cesLog(P) ? 'effects cancel (∂D₁/∂p₂ = 0)' : P.d > 0 ? 'gross substitutes (∂D₁/∂p₂ > 0)' : 'gross complements (∂D₁/∂p₂ < 0)';
+// quasi-linear: u = a x₁^ρ + x₂, log limit a ln x₁ + x₂ at ρ = 0
+const qlLog = P => Math.abs(P.r) < 1e-6;
+const qlG = (x, P) => qlLog(P) ? P.a * Math.log(x) : P.a * Math.pow(x, P.r);
+const qlGinv = (u, P) => qlLog(P) ? Math.exp(u / P.a) : (u >= 0 ? Math.pow(u / P.a, 1 / P.r) : NaN);
+const qlStar = (p1, p2, P) => qlLog(P) ? P.a * p2 / p1 : Math.pow(P.a * P.r * p2 / p1, 1 / (1 - P.r));
 
 const UT = {
   cd: {
@@ -150,22 +176,103 @@ const UT = {
     hicks: (p1, p2, u, P) => { const a = P.a; return [u * Math.pow(a * p2 / ((1 - a) * p1), 1 - a), u * Math.pow((1 - a) * p1 / (a * p2), a)]; },
     ic: (u, x, P) => Math.pow(u / Math.pow(x, P.a), 1 / (1 - P.a)),
     theory: () => [
-      'x₁(p, M) = aM / p₁, &nbsp;&nbsp; x₂(p, M) = (1−a)M / p₂',
+      'D₁(p, M) = aM / p₁, &nbsp;&nbsp; D₂(p, M) = (1−a)M / p₂',
       'h₁(p, ū) = ū·[a p₂ / ((1−a) p₁)]<sup>1−a</sup>, &nbsp;&nbsp; h₂(p, ū) = ū·[(1−a) p₁ / (a p₂)]<sup>a</sup>',
       'm(p, ū) = ū·(p₁/a)<sup>a</sup>·(p₂/(1−a))<sup>1−a</sup>',
       'v(p, M) = M·(a/p₁)<sup>a</sup>·((1−a)/p₂)<sup>1−a</sup>',
       'Budget shares are constant: p₁x₁/M = a. Both goods are normal.'],
     mCalc: (p1, p2, M, P, x) => { const a = P.a; return [
-      `x₁ = aM/p₁ = ${f(a)}·${f(M)}/${f(p1)} = ${b(f(x[0]))}`,
-      `x₂ = (1−a)M/p₂ = ${f(1 - a)}·${f(M)}/${f(p2)} = ${b(f(x[1]))}`]; },
+      `D₁ = aM/p₁ = ${f(a)}·${f(M)}/${f(p1)} = ${b(f(x[0]))}`,
+      `D₂ = (1−a)M/p₂ = ${f(1 - a)}·${f(M)}/${f(p2)} = ${b(f(x[1]))}`]; },
     hCalc: (p1, p2, u, P, h) => { const a = P.a; return [
       `h₁ = ū·[a p₂/((1−a) p₁)]<sup>1−a</sup> = ${f(u)}·[${f(a)}·${f(p2)}/(${f(1 - a)}·${f(p1)})]<sup>${f(1 - a)}</sup> = ${b(f(h[0]))}`,
       `h₂ = ū·[(1−a) p₁/(a p₂)]<sup>a</sup> = ${f(u)}·[${f(1 - a)}·${f(p1)}/(${f(a)}·${f(p2)})]<sup>${f(a)}</sup> = ${b(f(h[1]))}`]; },
     uCalc: (x, P, u) => `u = x₁<sup>a</sup> x₂<sup>1−a</sup> = ${f(x[0])}<sup>${f(P.a)}</sup>·${f(x[1])}<sup>${f(1 - P.a)}</sup> = ${b(f(u))}`
   },
 
+  cesd: {
+    name: 'CES (δ)',
+    form: 'u(x₁, x₂) = x₁<sup>δ</sup>/δ + x₂<sup>δ</sup>/δ &nbsp; (δ = 0: ln x₁ + ln x₂)',
+    params: [{ k: 'd', label: 'δ (δ < 1; δ = 0 is the log case)', min: -4.95, max: 0.95, step: 0.05, def: 0.5, keepM: true }],
+    u: (x, P) => cesLog(P) ? Math.log(x[0]) + Math.log(x[1]) : (Math.pow(x[0], P.d) + Math.pow(x[1], P.d)) / P.d,
+    marshall: (p1, p2, M, P) => {
+      if (cesLog(P)) return [M / (2 * p1), M / (2 * p2)];
+      if (cesCorner(P)) return cesPick(p1, p2, P, M / p1, M / p2, [M / (2 * p1), M / (2 * p2)]);
+      const e = 1 / (P.d - 1), S = cesS(p1, p2, P);
+      return [M * Math.pow(p1, e) / S, M * Math.pow(p2, e) / S]; },
+    hicks: (p1, p2, u, P) => {
+      if (cesLog(P)) { const k = Math.exp(u / 2); return [Math.sqrt(p2 / p1) * k, Math.sqrt(p1 / p2) * k]; }
+      if (!(P.d * u > 0)) return [NaN, NaN];
+      const k = Math.pow(P.d * u, 1 / P.d);
+      if (cesCorner(P)) return cesPick(p1, p2, P, k, k, [u / 2, u / 2]);
+      const e = 1 / (P.d - 1), c = Math.pow(cesS(p1, p2, P), -1 / P.d) * k;
+      return [Math.pow(p1, e) * c, Math.pow(p2, e) * c]; },
+    v: (p1, p2, M, P) => cesLog(P) ? Math.log(M / (2 * p1)) + Math.log(M / (2 * p2))
+      : cesCorner(P) ? UT.cesd.u(UT.cesd.marshall(p1, p2, M, P), P)
+      : Math.pow(M, P.d) / P.d * Math.pow(cesS(p1, p2, P), 1 - P.d),
+    m: (p1, p2, u, P) => {
+      if (cesLog(P)) return 2 * Math.sqrt(p1 * p2) * Math.exp(u / 2);
+      if (cesCorner(P)) { const h = UT.cesd.hicks(p1, p2, u, P); return p1 * h[0] + p2 * h[1]; }
+      return Math.pow(P.d * u, 1 / P.d) * Math.pow(cesS(p1, p2, P), (P.d - 1) / P.d); },
+    lam: (p1, p2, M, P) => cesLog(P) ? 2 / M : cesCorner(P) ? undefined : Math.pow(M, P.d - 1) * Math.pow(cesS(p1, p2, P), 1 - P.d),
+    lamForm: P => cesLog(P) ? 'λ = 2/M' : cesCorner(P) ? '' : 'λ = M<sup>δ−1</sup> S<sup>1−δ</sup>',
+    ic: (u, x, P) => { if (cesLog(P)) return Math.exp(u) / x;
+      const inner = P.d * u - Math.pow(x, P.d);
+      return inner > 0 ? Math.pow(inner, 1 / P.d) : NaN; },
+    uRange: (P, u) => {
+      if (cesLog(P)) return [Math.floor(u) - 10, Math.ceil(u) + 10, 0.01];
+      const [lo, hi] = P.d > 0 ? (u > 0 ? [u / 5, 3 * u] : [0.1, 300]) : (u < 0 ? [3 * u, u / 5] : [-10, -0.01]);
+      return [lo, hi, +((hi - lo) / 1000).toPrecision(2)]; },
+    note: P => {
+      const sig = cesLog(P) ? 1 : 1 / (1 - P.d);
+      let s = cesCorner(P) ? `<span class="warn">δ = ${f(P.d)} ≥ 1 violates strict quasi-concavity, so the solution is a corner: only the cheaper good is bought.</span>`
+                           : `σ = 1/(1−δ) = <b>${f(sig)}</b>. Good 1, for a change in p₂: <b>${cesCross(P)}</b>. The goods are always Hicksian (net) substitutes: ∂h₁/∂p₂ > 0.`;
+      return s + '<br>δ = 1 is excluded: δ ≥ 1 violates strict quasi-concavity, so the solution is a corner.'; },
+    flags: (R, P) => cesCorner(P) ? [{ w: true, h: `Corner solutions: with δ ≥ 1 the consumer spends everything on the cheaper good.` }] : [],
+    theory: P => {
+      const sig = cesLog(P) ? 1 : 1 / (1 - P.d);
+      const tail = [`Elasticity of substitution σ = 1/(1−δ) = ${f(sig)}. &nbsp; δ → −∞: perfect complements; δ = 0: Cobb–Douglas; δ → 1: perfect substitutes.`,
+        `Change in p₂, effect on good 1: <b>gross substitutes</b> if 0 < δ < 1 (∂D₁/∂p₂ > 0), <b>effects cancel</b> if δ = 0 (∂D₁/∂p₂ = 0), <b>gross complements</b> if δ < 0 (∂D₁/∂p₂ < 0). Now: ${cesCorner(P) ? '—' : cesCross(P)}.`,
+        'With two goods they are always Hicksian (net) substitutes: ∂h₁/∂p₂ > 0. Gross complementarity comes from the income effect.'];
+      if (cesLog(P)) return [
+        '|δ| < 10<sup>−6</sup>: the limit u = ln x₁ + ln x₂.',
+        'D₁(p, M) = M/(2p₁), &nbsp;&nbsp; D₂(p, M) = M/(2p₂)',
+        'h₁(p, ū) = √(p₂/p₁)·e<sup>ū/2</sup>, &nbsp;&nbsp; h₂(p, ū) = √(p₁/p₂)·e<sup>ū/2</sup>',
+        'v(p, M) = ln(M/(2p₁)) + ln(M/(2p₂)), &nbsp;&nbsp; λ = 2/M',
+        'm(p, ū) = 2√(p₁p₂)·e<sup>ū/2</sup>'].concat(tail);
+      if (cesCorner(P)) return [
+        'δ ≥ 1: the indifference curves are straight (δ = 1) or concave to the origin (δ > 1), so u is not strictly quasi-concave and the tangency condition gives a minimum, not a maximum.',
+        'D(p, M) = (M/p₁, 0) if p₁ < p₂, (0, M/p₂) if p₁ > p₂; &nbsp; h(p, ū) = ((δū)<sup>1/δ</sup>, 0) or (0, (δū)<sup>1/δ</sup>) by the same comparison'].concat(tail.slice(0, 1));
+      return [
+        'r = δ/(δ−1), &nbsp;&nbsp; S = p₁<sup>r</sup> + p₂<sup>r</sup>',
+        'D<sub>i</sub>(p, M) = M p<sub>i</sub><sup>1/(δ−1)</sup> / S',
+        'h<sub>i</sub>(p, ū) = p<sub>i</sub><sup>1/(δ−1)</sup> S<sup>−1/δ</sup> (δū)<sup>1/δ</sup>',
+        'v(p, M) = (M<sup>δ</sup>/δ) S<sup>1−δ</sup>, &nbsp;&nbsp; λ = M<sup>δ−1</sup> S<sup>1−δ</sup>',
+        'm(p, ū) = (δū)<sup>1/δ</sup> S<sup>(δ−1)/δ</sup>',
+        'Indifference curves: x₂ = (δū − x₁<sup>δ</sup>)<sup>1/δ</sup>. For δ < 0 utility is negative, so ū < 0 and δū > 0.'].concat(tail); },
+    mCalc: (p1, p2, M, P, x) => {
+      if (cesLog(P)) return [`D₁ = M/(2p₁) = ${f(M)}/(2·${f(p1)}) = ${b(f(x[0]))}, &nbsp;&nbsp; D₂ = M/(2p₂) = ${f(M)}/(2·${f(p2)}) = ${b(f(x[1]))}`];
+      if (cesCorner(P)) return [`δ ≥ 1, p₁ = ${f(p1)}, p₂ = ${f(p2)}: <span class="warn">corner</span>, spend everything on the cheaper good`, `⇒ D(p, M) = (${b(f(x[0]))}, ${b(f(x[1]))})`];
+      const d = P.d, r = d / (d - 1), e = 1 / (d - 1), Sv = cesS(p1, p2, P); return [
+      `r = δ/(δ−1) = ${f(r)}, &nbsp; S = p₁<sup>r</sup> + p₂<sup>r</sup> = ${f(p1)}<sup>${f(r)}</sup> + ${f(p2)}<sup>${f(r)}</sup> = ${fu(Sv)}`,
+      `D₁ = M p₁<sup>1/(δ−1)</sup>/S = ${f(M)}·${f(p1)}<sup>${f(e)}</sup>/${fu(Sv)} = ${b(f(x[0]))}`,
+      `D₂ = M p₂<sup>1/(δ−1)</sup>/S = ${f(M)}·${f(p2)}<sup>${f(e)}</sup>/${fu(Sv)} = ${b(f(x[1]))}`]; },
+    hCalc: (p1, p2, u, P, h) => {
+      if (cesLog(P)) return [
+        `h₁ = √(p₂/p₁)·e<sup>ū/2</sup> = √(${f(p2)}/${f(p1)})·e<sup>${f(u / 2)}</sup> = ${b(f(h[0]))}`,
+        `h₂ = √(p₁/p₂)·e<sup>ū/2</sup> = √(${f(p1)}/${f(p2)})·e<sup>${f(u / 2)}</sup> = ${b(f(h[1]))}`];
+      const d = P.d, k = Math.pow(d * u, 1 / d);
+      if (cesCorner(P)) return [`δ ≥ 1: <span class="warn">corner</span>, (δū)<sup>1/δ</sup> = ${fu(k)} of the cheaper good`, `⇒ h = (${b(f(h[0]))}, ${b(f(h[1]))})`];
+      const r = d / (d - 1), e = 1 / (d - 1), Sv = cesS(p1, p2, P); return [
+      `δū = ${f(d)}·${fu(u)} = ${fu(d * u)}, &nbsp; (δū)<sup>1/δ</sup> = ${fu(k)}, &nbsp; S = ${f(p1)}<sup>${f(r)}</sup> + ${f(p2)}<sup>${f(r)}</sup> = ${fu(Sv)}`,
+      `h₁ = p₁<sup>1/(δ−1)</sup> S<sup>−1/δ</sup> (δū)<sup>1/δ</sup> = ${f(p1)}<sup>${f(e)}</sup>·${fu(Sv)}<sup>${f(-1 / d)}</sup>·${fu(k)} = ${b(f(h[0]))}`,
+      `h₂ = p₂<sup>1/(δ−1)</sup> S<sup>−1/δ</sup> (δū)<sup>1/δ</sup> = ${f(p2)}<sup>${f(e)}</sup>·${fu(Sv)}<sup>${f(-1 / d)}</sup>·${fu(k)} = ${b(f(h[1]))}`]; },
+    uCalc: (x, P, u) => cesLog(P) ? `u = ln x₁ + ln x₂ = ln ${f(x[0])} + ln ${f(x[1])} = ${b(f(u))}`
+      : `u = x₁<sup>δ</sup>/δ + x₂<sup>δ</sup>/δ = (${f(x[0])}<sup>${f(P.d)}</sup> + ${f(x[1])}<sup>${f(P.d)}</sup>)/${fp(P.d)} = ${b(fu(u))}`
+  },
+
   ces: {
-    name: 'CES',
+    name: 'CES with weights (a, σ)',
     form: 'u = [a x₁<sup>ρ</sup> + (1−a) x₂<sup>ρ</sup>]<sup>1/ρ</sup>, &nbsp; ρ = (σ−1)/σ',
     params: [{ k: 'a', label: 'a (weight on good 1)', min: 0.05, max: 0.95, step: 0.05, def: 0.5 },
              { k: 's', label: 'σ (elasticity of substitution)', min: 0.1, max: 4, step: 0.1, def: 0.5 }],
@@ -181,19 +288,19 @@ const UT = {
       const inner = (Math.pow(u, r) - P.a * Math.pow(x, r)) / (1 - P.a);
       return inner > 0 ? Math.pow(inner, 1 / r) : NaN; },
     theory: P => cesOne(P) ? ['σ = 1 is the Cobb–Douglas case.'].concat(UT.cd.theory(P)) : [
-      'D(p) = a<sup>σ</sup> p₁<sup>1−σ</sup> + (1−a)<sup>σ</sup> p₂<sup>1−σ</sup>, &nbsp;&nbsp; price index P(p) = D(p)<sup>1/(1−σ)</sup>',
-      'x₁(p, M) = M a<sup>σ</sup> p₁<sup>−σ</sup> / D, &nbsp;&nbsp; x₂(p, M) = M (1−a)<sup>σ</sup> p₂<sup>−σ</sup> / D',
+      'Δ(p) = a<sup>σ</sup> p₁<sup>1−σ</sup> + (1−a)<sup>σ</sup> p₂<sup>1−σ</sup>, &nbsp;&nbsp; price index P(p) = Δ(p)<sup>1/(1−σ)</sup>',
+      'D₁(p, M) = M a<sup>σ</sup> p₁<sup>−σ</sup> / Δ, &nbsp;&nbsp; D₂(p, M) = M (1−a)<sup>σ</sup> p₂<sup>−σ</sup> / Δ',
       'h₁(p, ū) = ū a<sup>σ</sup> p₁<sup>−σ</sup> P<sup>σ</sup>, &nbsp;&nbsp; h₂(p, ū) = ū (1−a)<sup>σ</sup> p₂<sup>−σ</sup> P<sup>σ</sup>',
       'm(p, ū) = ū·P(p), &nbsp;&nbsp; v(p, M) = M / P(p)',
       'σ → 0: perfect complements; σ = 1: Cobb–Douglas; σ → ∞: perfect substitutes. A larger σ gives a larger substitution effect.'],
     mCalc: (p1, p2, M, P, x) => { if (cesOne(P)) return UT.cd.mCalc(p1, p2, M, P, x);
       const a = P.a, s = P.s, D = cesD(p1, p2, P); return [
-      `D = a<sup>σ</sup>p₁<sup>1−σ</sup> + (1−a)<sup>σ</sup>p₂<sup>1−σ</sup> = ${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(1 - s)}</sup> + ${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(1 - s)}</sup> = ${f(D)}`,
-      `x₁ = M a<sup>σ</sup> p₁<sup>−σ</sup> / D = ${f(M)}·${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(-s)}</sup> / ${f(D)} = ${b(f(x[0]))}`,
-      `x₂ = M (1−a)<sup>σ</sup> p₂<sup>−σ</sup> / D = ${f(M)}·${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(-s)}</sup> / ${f(D)} = ${b(f(x[1]))}`]; },
+      `Δ = a<sup>σ</sup>p₁<sup>1−σ</sup> + (1−a)<sup>σ</sup>p₂<sup>1−σ</sup> = ${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(1 - s)}</sup> + ${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(1 - s)}</sup> = ${f(D)}`,
+      `D₁ = M a<sup>σ</sup> p₁<sup>−σ</sup> / Δ = ${f(M)}·${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(-s)}</sup> / ${f(D)} = ${b(f(x[0]))}`,
+      `D₂ = M (1−a)<sup>σ</sup> p₂<sup>−σ</sup> / Δ = ${f(M)}·${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(-s)}</sup> / ${f(D)} = ${b(f(x[1]))}`]; },
     hCalc: (p1, p2, u, P, h) => { if (cesOne(P)) return UT.cd.hCalc(p1, p2, u, P, h);
       const a = P.a, s = P.s, D = cesD(p1, p2, P), Pi = Math.pow(D, 1 / (1 - s)); return [
-      `D = ${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(1 - s)}</sup> + ${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(1 - s)}</sup> = ${f(D)}, &nbsp; P = D<sup>1/(1−σ)</sup> = ${f(D)}<sup>${f(1 / (1 - s))}</sup> = ${f(Pi)}`,
+      `Δ = ${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(1 - s)}</sup> + ${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(1 - s)}</sup> = ${f(D)}, &nbsp; P = Δ<sup>1/(1−σ)</sup> = ${f(D)}<sup>${f(1 / (1 - s))}</sup> = ${f(Pi)}`,
       `h₁ = ū a<sup>σ</sup> p₁<sup>−σ</sup> P<sup>σ</sup> = ${f(u)}·${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(-s)}</sup>·${f(Pi)}<sup>${f(s)}</sup> = ${b(f(h[0]))}`,
       `h₂ = ū (1−a)<sup>σ</sup> p₂<sup>−σ</sup> P<sup>σ</sup> = ${f(u)}·${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(-s)}</sup>·${f(Pi)}<sup>${f(s)}</sup> = ${b(f(h[1]))}`]; },
     uCalc: (x, P, u) => { if (cesOne(P)) return UT.cd.uCalc(x, P, u); const r = (P.s - 1) / P.s;
@@ -210,12 +317,12 @@ const UT = {
     icPoly: (u, P, X, Y) => [[[P.a * u, Y * 3], [P.a * u, (1 - P.a) * u], [X * 3, (1 - P.a) * u]]],
     theory: () => [
       'The consumer always buys at the kink: x₂/x₁ = (1−a)/a.',
-      'x₁(p, M) = aM / (a p₁ + (1−a) p₂), &nbsp;&nbsp; x₂(p, M) = (1−a)M / (a p₁ + (1−a) p₂)',
+      'D₁(p, M) = aM / (a p₁ + (1−a) p₂), &nbsp;&nbsp; D₂(p, M) = (1−a)M / (a p₁ + (1−a) p₂)',
       'h₁(p, ū) = a ū, &nbsp;&nbsp; h₂(p, ū) = (1−a) ū &nbsp; (no price in it: zero substitution effect)',
       'm(p, ū) = ū (a p₁ + (1−a) p₂), &nbsp;&nbsp; v(p, M) = M / (a p₁ + (1−a) p₂)'],
     mCalc: (p1, p2, M, P, x) => { const a = P.a, d = a * p1 + (1 - a) * p2; return [
       `a p₁ + (1−a) p₂ = ${f(a)}·${f(p1)} + ${f(1 - a)}·${f(p2)} = ${f(d)}`,
-      `x₁ = aM / ${f(d)} = ${f(a)}·${f(M)}/${f(d)} = ${b(f(x[0]))}, &nbsp;&nbsp; x₂ = (1−a)M / ${f(d)} = ${f(1 - a)}·${f(M)}/${f(d)} = ${b(f(x[1]))}`]; },
+      `D₁ = aM / ${f(d)} = ${f(a)}·${f(M)}/${f(d)} = ${b(f(x[0]))}, &nbsp;&nbsp; D₂ = (1−a)M / ${f(d)} = ${f(1 - a)}·${f(M)}/${f(d)} = ${b(f(x[1]))}`]; },
     hCalc: (p1, p2, u, P, h) => [
       `h₁ = a ū = ${f(P.a)}·${f(u)} = ${b(f(h[0]))}, &nbsp;&nbsp; h₂ = (1−a) ū = ${f(1 - P.a)}·${f(u)} = ${b(f(h[1]))}`],
     uCalc: (x, P, u) => `u = min{ x₁/a, x₂/(1−a) } = min{ ${f(x[0] / P.a)}, ${f(x[1] / (1 - P.a))} } = ${b(f(u))}`
@@ -235,12 +342,12 @@ const UT = {
     icPoly: (u, P) => [[[u / P.a, 0], [0, u / (1 - P.a)]]],
     theory: () => [
       'Spend everything on the good with the higher marginal utility per krona: compare a/p₁ with (1−a)/p₂. If they are equal any split is optimal; this page splits spending half and half.',
-      'x = (M/p₁, 0) if a/p₁ > (1−a)/p₂, &nbsp;&nbsp; x = (0, M/p₂) if a/p₁ < (1−a)/p₂',
+      'D(p, M) = (M/p₁, 0) if a/p₁ > (1−a)/p₂, &nbsp;&nbsp; D(p, M) = (0, M/p₂) if a/p₁ < (1−a)/p₂',
       'h = (ū/a, 0) or (0, ū/(1−a)) by the same comparison',
       'm(p, ū) = ū·min{ p₁/a, p₂/(1−a) }, &nbsp;&nbsp; v(p, M) = M·max{ a/p₁, (1−a)/p₂ }'],
     mCalc: (p1, p2, M, P, x) => { const r1 = P.a / p1, r2 = (1 - P.a) / p2, c = Math.abs(r1 - r2) < 1e-12 ? '=' : (r1 > r2 ? '>' : '<'); return [
       `a/p₁ = ${f(P.a)}/${f(p1)} = ${f(r1)} &nbsp;${c}&nbsp; (1−a)/p₂ = ${f(1 - P.a)}/${f(p2)} = ${f(r2)}`,
-      `⇒ x = (${b(f(x[0]))}, ${b(f(x[1]))})`]; },
+      `⇒ D(p, M) = (${b(f(x[0]))}, ${b(f(x[1]))})`]; },
     hCalc: (p1, p2, u, P, h) => { const r1 = P.a / p1, r2 = (1 - P.a) / p2, c = Math.abs(r1 - r2) < 1e-12 ? '=' : (r1 > r2 ? '>' : '<'); return [
       `a/p₁ = ${f(r1)} &nbsp;${c}&nbsp; (1−a)/p₂ = ${f(r2)}`,
       `⇒ h = (${b(f(h[0]))}, ${b(f(h[1]))}) &nbsp; (ū/a = ${f(u / P.a)}, ū/(1−a) = ${f(u / (1 - P.a))})`]; },
@@ -248,32 +355,57 @@ const UT = {
   },
 
   ql: {
-    name: 'Quasilinear',
-    form: 'u = A ln x₁ + x₂',
-    uMin: -100,
-    params: [{ k: 'A', label: 'A (weight on good 1)', min: 1, max: 100, step: 1, def: 20 }],
-    u: (x, P) => P.A * Math.log(x[0]) + x[1],
-    marshall: (p1, p2, M, P) => M >= P.A * p2 ? [P.A * p2 / p1, M / p2 - P.A] : [M / p1, 0],
-    hicks: (p1, p2, u, P) => { const h1 = P.A * p2 / p1, h2 = u - P.A * Math.log(h1);
-      return h2 >= 0 ? [h1, h2] : [Math.exp(u / P.A), 0]; },
-    ic: (u, x, P) => { const y = u - P.A * Math.log(x); return y >= 0 ? y : NaN; },
-    theory: () => [
-      'Interior solution (when M ≥ A p₂): x₁ = A p₂ / p₁, &nbsp;&nbsp; x₂ = M/p₂ − A. Otherwise there is a corner: x₁ = M/p₁, x₂ = 0.',
-      'h₁(p, ū) = A p₂ / p₁, &nbsp;&nbsp; h₂(p, ū) = ū − A ln(A p₂ / p₁) &nbsp; (if this is ≥ 0)',
-      'm(p, ū) = A p₂ + p₂ [ū − A ln(A p₂ / p₁)], &nbsp;&nbsp; v(p, M) = A ln(A p₂ / p₁) + M/p₂ − A',
-      'At an interior solution x₁ does not depend on M, so the income effect on good 1 is zero and x₁ = h₁.'],
-    mCalc: (p1, p2, M, P, x) => M >= P.A * p2 ? [
-      `M = ${f(M)} ≥ A p₂ = ${f(P.A * p2)}: interior solution`,
-      `x₁ = A p₂/p₁ = ${f(P.A)}·${f(p2)}/${f(p1)} = ${b(f(x[0]))}, &nbsp;&nbsp; x₂ = M/p₂ − A = ${f(M)}/${f(p2)} − ${f(P.A)} = ${b(f(x[1]))}`] : [
-      `M = ${f(M)} < A p₂ = ${f(P.A * p2)}: corner solution`,
-      `x₁ = M/p₁ = ${f(M)}/${f(p1)} = ${b(f(x[0]))}, &nbsp;&nbsp; x₂ = ${b('0')}`],
-    hCalc: (p1, p2, u, P, h) => { const h1 = P.A * p2 / p1, h2 = u - P.A * Math.log(h1);
-      return h2 >= 0 ? [
-        `h₁ = A p₂/p₁ = ${f(P.A)}·${f(p2)}/${f(p1)} = ${b(f(h[0]))}`,
-        `h₂ = ū − A ln h₁ = ${f(u)} − ${f(P.A)}·ln(${f(h1)}) = ${b(f(h[1]))}`] : [
-        `ū − A ln(A p₂/p₁) = ${f(h2)} < 0: corner, h₂ = ${b('0')}`,
-        `h₁ = e<sup>ū/A</sup> = e<sup>${f(u / P.A)}</sup> = ${b(f(h[0]))}`]; },
-    uCalc: (x, P, u) => `u = A ln x₁ + x₂ = ${f(P.A)}·ln(${f(x[0])}) + ${f(x[1])} = ${b(f(u))}`
+    name: 'Quasi-linear',
+    form: 'u = a x₁<sup>ρ</sup> + x₂ &nbsp; (ρ = 0: a ln x₁ + x₂)',
+    params: [{ k: 'a', label: 'a (weight on good 1)', min: 0.5, max: 5, step: 0.1, def: 4, keepM: true },
+             { k: 'r', label: 'ρ (0 < ρ < 1; ρ = 0 is the limit a ln x₁)', min: 0, max: 0.95, step: 0.05, def: 0.5, keepM: true }],
+    presets: [{ name: '2023 exam', P: { a: 1, r: 0.5 }, p1: 2, p2: 2, q1: 1, q2: 2, M: 10 },
+              { name: 'Mixed PS Problem 3', P: { a: 4, r: 0 }, p1: 4, p2: 1, q1: 1, q2: 1, M: 100 }],
+    zeroIE: true,
+    invalid: P => (P.r < 0 || P.r >= 1 || P.a <= 0) ? 'This page needs a > 0 and 0 ≤ ρ < 1.' : '',
+    u: (x, P) => qlG(x[0], P) + x[1],
+    marshall: (p1, p2, M, P) => { const s = qlStar(p1, p2, P);
+      return M > p1 * s ? [s, M / p2 - p1 / p2 * s] : [M / p1, 0]; },
+    hicks: (p1, p2, u, P) => { const s = qlStar(p1, p2, P), g = qlG(s, P);
+      return u > g ? [s, u - g] : [qlGinv(u, P), 0]; },
+    v: (p1, p2, M, P) => { const s = qlStar(p1, p2, P);
+      return M > p1 * s ? qlG(s, P) + M / p2 - p1 / p2 * s : qlG(M / p1, P); },
+    m: (p1, p2, u, P) => { const s = qlStar(p1, p2, P), g = qlG(s, P);
+      return u > g ? p1 * s + p2 * (u - g) : p1 * qlGinv(u, P); },
+    lam: (p1, p2, M, P) => { const s = qlStar(p1, p2, P);
+      return M > p1 * s ? 1 / p2 : (qlLog(P) ? P.a / M : P.a * P.r * Math.pow(M / p1, P.r - 1) / p1); },
+    lamForm: () => 'λ = 1/p₂ (interior)',
+    ic: (u, x, P) => { const y = u - qlG(x, P); return y >= 0 ? y : NaN; },
+    uRange: (P, u) => qlLog(P) ? [Math.min(-20, Math.floor(u) - 20), Math.max(20, Math.ceil(2 * Math.abs(u)) + 10), 0.01]
+                               : [0.01, Math.max(20, Math.ceil(3 * u)), 0.01],
+    note: P => qlLog(P) ? 'ρ = 0: the limit u = a ln x₁ + x₂.' : '',
+    flags: (R, P) => {
+      const out = [], corner = [['A', R.A], ['B', R.B], ['C', R.C]].filter(z => z[1][1] <= 0).map(z => z[0]);
+      if (corner.length) out.push({ w: true, h: `<b>Corner solution at ${corner.join(', ')}</b>: x₂ = 0, so x₁ is not x₁* there (${S.mode === 'M' ? 'M ≤ p₁x₁*' : 'ū ≤ a(x₁*)<sup>ρ</sup>'} or the analogous condition at p′).` });
+      if (R.B[1] > 0 && R.C[1] > 0) out.push({ h: `B and C have the same x₁ = ${f(R.C[0])} (zero income effect on good 1). <b>∂D₁/∂M = 0, so ∂D₁/∂p₁ = ∂h₁/∂p₁: the whole effect is substitution.</b>` });
+      else out.push({ w: true, h: 'B or C is a corner, so here x₁ does depend on income and B and C need not have the same x₁.' });
+      return out; },
+    theory: P => { const L = qlLog(P), g = L ? 'a ln x₁*' : 'a (x₁*)<sup>ρ</sup>';
+      return [
+      L ? 'ρ = 0: the limit u = a ln x₁ + x₂.' : '',
+      `MRS = ${L ? 'a/x₁' : 'aρ x₁<sup>ρ−1</sup>'} does not depend on x₂, so the tangency MRS = p₁/p₂ gives x₁* = ${L ? 'a p₂/p₁' : '(aρ p₂/p₁)<sup>1/(1−ρ)</sup>'}, whatever the income.`,
+      'Interior (M > p₁x₁*): D₁(p, M) = h₁(p, ū) = x₁*, &nbsp;&nbsp; D₂(p, M) = M/p₂ − (p₁/p₂) x₁*',
+      `v(p, M) = ${g} + D₂, &nbsp;&nbsp; λ = 1/p₂`,
+      `h₂(p, ū) = ū − ${g}, &nbsp;&nbsp; m(p, ū) = p₁x₁* + p₂h₂`,
+      `Corners: if M ≤ p₁x₁* then D₁ = M/p₁, D₂ = 0; &nbsp; if ū ≤ ${g} then h₁ = ${L ? 'e<sup>ū/a</sup>' : '(ū/a)<sup>1/ρ</sup>'}, h₂ = 0.`,
+      '<b>∂D₁/∂M = 0, so ∂D₁/∂p₁ = ∂h₁/∂p₁: the whole effect is substitution.</b> At interior solutions B and C have the same x₁, and CV = EV.'].filter(Boolean); },
+    mCalc: (p1, p2, M, P, x) => { const s = qlStar(p1, p2, P); return [
+      `x₁* = ${qlLog(P) ? `a p₂/p₁ = ${f(P.a)}·${f(p2)}/${f(p1)}` : `(aρ p₂/p₁)<sup>1/(1−ρ)</sup> = (${f(P.a)}·${f(P.r)}·${f(p2)}/${f(p1)})<sup>${f(1 / (1 - P.r))}</sup>`} = ${f(s)}`,
+      M > p1 * s
+        ? `M = ${f(M)} > p₁x₁* = ${f(p1 * s)}: interior. &nbsp; D₁ = x₁* = ${b(f(x[0]))}, &nbsp; D₂ = M/p₂ − (p₁/p₂)x₁* = ${f(M)}/${f(p2)} − (${f(p1)}/${f(p2)})·${f(s)} = ${b(f(x[1]))}`
+        : `M = ${f(M)} ≤ p₁x₁* = ${f(p1 * s)}: <span class="warn">corner</span>. &nbsp; D₁ = M/p₁ = ${f(M)}/${f(p1)} = ${b(f(x[0]))}, &nbsp; D₂ = ${b('0')}`]; },
+    hCalc: (p1, p2, u, P, h) => { const s = qlStar(p1, p2, P), g = qlG(s, P), L = qlLog(P); return [
+      `x₁* = ${f(s)}, &nbsp; ${L ? 'a ln x₁*' : 'a (x₁*)<sup>ρ</sup>'} = ${f(g)}`,
+      u > g
+        ? `ū = ${f(u)} > ${f(g)}: interior. &nbsp; h₁ = x₁* = ${b(f(h[0]))}, &nbsp; h₂ = ū − ${f(g)} = ${b(f(h[1]))}`
+        : `ū = ${f(u)} ≤ ${f(g)}: <span class="warn">corner</span>. &nbsp; h₁ = ${L ? `e<sup>ū/a</sup> = e<sup>${f(u / P.a)}</sup>` : `(ū/a)<sup>1/ρ</sup> = (${f(u)}/${f(P.a)})<sup>${f(1 / P.r)}</sup>`} = ${b(f(h[0]))}, &nbsp; h₂ = ${b('0')}`]; },
+    uCalc: (x, P, u) => qlLog(P) ? `u = a ln x₁ + x₂ = ${f(P.a)}·ln(${f(x[0])}) + ${f(x[1])} = ${b(f(u))}`
+      : `u = a x₁<sup>ρ</sup> + x₂ = ${f(P.a)}·${f(x[0])}<sup>${f(P.r)}</sup> + ${f(x[1])} = ${b(f(u))}`
   }
 };
 
@@ -289,18 +421,19 @@ function resetState() {
 }
 
 // ---------- controls ----------
-function slider(container, key, label, min, max, step, obj) {
+function slider(container, key, label, min, max, step, obj, set) {
   obj = obj || S;
+  set = set || (v => { obj[key] = v; });
   const row = document.createElement('div');
   row.className = 'row';
   row.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}"><input type="number" step="any">`;
   const [r, n] = row.querySelectorAll('input');
   r.value = obj[key]; n.value = obj[key];
-  r.addEventListener('input', () => { obj[key] = +r.value; n.value = r.value; update(); });
+  r.addEventListener('input', () => { set(+r.value); n.value = r.value; update(); });
   n.addEventListener('change', () => {
     let v = parseFloat(n.value);
     if (!isFinite(v)) { n.value = obj[key]; return; }
-    obj[key] = v; r.value = v; update();
+    set(v); r.value = v; update();
   });
   container.appendChild(row);
 }
@@ -310,7 +443,26 @@ function buildParams() {
   const T = UT[S.util];
   $('utilForm').innerHTML = T.form;
   const c = $('params'); c.innerHTML = '';
-  T.params.forEach(p => slider(c, p.k, p.label, p.min, p.max, p.step, S.params));
+  T.params.forEach(p => slider(c, p.k, p.label, p.min, p.max, p.step, S.params, p.keepM ? v => {
+    // these parameters change the units of utility: when starting from ū, keep income M fixed instead
+    const M = S.mode === 'u' ? compute(S.q1, S.q2).M : NaN;
+    S.params[p.k] = v;
+    if (isFinite(M)) { const u = vOf(T, positive(S.p1), positive(S.p2), M, S.params); if (isFinite(u)) { S.u = roundU(u); buildStart(); } }
+  } : undefined));
+  if (T.presets) {
+    const d = document.createElement('div'); d.className = 'presets';
+    T.presets.forEach(pr => {
+      const btn = document.createElement('button'); btn.textContent = 'Preset: ' + pr.name;
+      btn.addEventListener('click', () => {
+        if (animating) return;
+        Object.assign(S.params, pr.P);
+        Object.assign(S, { mode: 'M', p1: pr.p1, p2: pr.p2, q1: pr.q1, q2: pr.q2, M: pr.M, step: 3 });
+        buildAll();
+      });
+      d.appendChild(btn);
+    });
+    c.appendChild(d);
+  }
 }
 function buildStart() {
   const c = $('startCtl'); c.innerHTML = '';
@@ -318,8 +470,9 @@ function buildStart() {
   slider(c, 'p2', 'p₂', 0.1, 10, 0.1);
   if (S.mode === 'M') slider(c, 'M', 'Income M', 1, 500, 1);
   else {
-    const lo = UT[S.util].uMin !== undefined ? UT[S.util].uMin : 0.1;
-    slider(c, 'u', 'Utility ū', lo, Math.max(300, Math.ceil(2 * S.u)), 0.1);
+    const T = UT[S.util];
+    const [lo, hi, st] = T.uRange ? T.uRange(S.params, S.u) : [0.1, Math.max(300, Math.ceil(2 * S.u)), 0.1];
+    slider(c, 'u', 'Utility ū', lo, hi, st);
   }
 }
 function buildNew() {
@@ -335,6 +488,10 @@ function buildAll() {
 }
 
 // ---------- model ----------
+// indirect utility v(p, M) and expenditure function m(p, ū): closed forms where given, otherwise u(D) and p·h
+const vOf = (T, p1, p2, M, P) => T.v ? T.v(p1, p2, M, P) : T.u(T.marshall(p1, p2, M, P), P);
+const mOf = (T, p1, p2, u, P) => { if (T.m) return T.m(p1, p2, u, P); const h = T.hicks(p1, p2, u, P); return p1 * h[0] + p2 * h[1]; };
+
 function compute(q1, q2) {
   const T = UT[S.util], P = S.params;
   const p1 = positive(S.p1), p2 = positive(S.p2);
@@ -347,7 +504,8 @@ function compute(q1, q2) {
   if (S.comp === 'hicks') { B = T.hicks(q1, q2, u0, P); Mc = q1 * B[0] + q2 * B[1]; }
   else { Mc = q1 * A[0] + q2 * A[1]; B = T.marshall(q1, q2, Mc, P); }
   const uB = T.u(B, P);
-  return { p1, p2, q1, q2, A, B, C, M, Mc, u0, u1, uB, cheque: Mc - M };
+  const mq0 = mOf(T, q1, q2, u0, P), mp1 = mOf(T, p1, p2, u1, P);
+  return { p1, p2, q1, q2, A, B, C, M, Mc, u0, u1, uB, cheque: Mc - M, mq0, mp1, CV: M - mq0, EV: mp1 - M };
 }
 
 // ---------- drawing ----------
@@ -409,7 +567,7 @@ function draw(R, Sc, step) {
   s += path(icSegments(R.u0, Sc), col.A, 'stroke-width="1.6" opacity="0.55"');
   s += budget(R.M, R.p1, R.p2, col.A, 'stroke-width="2.4"');
   if (step >= 2) {
-    if (S.comp === 'slutsky' && Math.abs(R.uB - R.u0) > 1e-6)
+    if (S.comp === 'slutsky' && !sameU(R.uB, R.u0))
       s += path(icSegments(R.uB, Sc), col.B, 'stroke-width="1.6" opacity="0.6" stroke-dasharray="2 4"');
     s += budget(R.Mc, R.q1, R.q2, col.B, 'stroke-width="2.4" stroke-dasharray="8 5"');
   }
@@ -429,6 +587,12 @@ function draw(R, Sc, step) {
   for (const [k, x] of pts) {
     s += `<circle cx="${X(x[0])}" cy="${Y(x[1])}" r="5.5" style="fill:${col[k]};stroke:var(--bg)" stroke-width="2"/>`;
     s += `<text x="${X(x[0]) + offs[k][0]}" y="${Y(x[1]) + offs[k][1]}" font-size="15" font-weight="700" style="fill:${col[k]}">${k}</text>`;
+  }
+
+  if (UT[S.util].zeroIE && step >= 3 && R.B[1] > 0 && R.C[1] > 0 && Math.abs(R.B[0] - R.C[0]) < 1e-9 * (1 + R.C[0]) && Math.abs(Y(R.B[1]) - Y(R.C[1])) > 12) {
+    const xx = X(R.C[0]), right = xx < L + pw * 0.62;
+    s += `<line x1="${xx}" y1="${Y(R.B[1])}" x2="${xx}" y2="${Y(R.C[1])}" style="stroke:var(--C)" stroke-width="3" opacity="0.45"/>`;
+    s += `<text x="${xx + (right ? 10 : -10)}" y="${(Y(R.B[1]) + Y(R.C[1])) / 2 + 4}" font-size="12.5" text-anchor="${right ? 'start' : 'end'}" style="fill:var(--C)">B, C: same x₁</text>`;
   }
 
   // arrows along the axes
@@ -460,10 +624,10 @@ function draw(R, Sc, step) {
 // ---------- text ----------
 function captionText(R, step) {
   const ch = R.cheque, H = S.comp === 'hicks';
-  const what = H ? `just enough to stay on the old indifference curve u₀ = ${f(R.u0)}: m(p′, u₀) − M`
+  const what = H ? `just enough to stay on the old indifference curve u₀ = ${fu(R.u0)}: m(p′, u₀) − M`
                  : `just enough to still afford the old bundle A: p′·x<sub>A</sub> − M`;
   const pay = ch >= 0 ? `receives a cheque of <b>${f(ch)}</b>` : `pays a lump-sum tax of <b>${f(-ch)}</b>`;
-  if (step === 1) return `<b>1 · Before.</b> At prices p = (${f(R.p1)}, ${f(R.p2)}) and income M = ${f(R.M)}, the consumer chooses <b class="cA">A</b> = (${f(R.A[0])}, ${f(R.A[1])}) with utility u₀ = ${f(R.u0)}.`;
+  if (step === 1) return `<b>1 · Before.</b> At prices p = (${f(R.p1)}, ${f(R.p2)}) and income M = ${f(R.M)}, the consumer chooses <b class="cA">A</b> = (${f(R.A[0])}, ${f(R.A[1])}) with utility u₀ = ${fu(R.u0)}.`;
   if (step === 2) return `<b>2 · Prices change to p′ = (${f(R.q1)}, ${f(R.q2)}), and at the same moment the consumer ${pay}</b>, ${what}. Only relative prices have changed, so the move from A to <b class="cB">B</b> = (${f(R.B[0])}, ${f(R.B[1])}) is the <b class="cB">substitution effect</b>.`;
   const back = ch >= 0 ? 'The cheque is taken back' : 'The tax is refunded';
   return `<b>3 · ${back}.</b> The dashed budget line shifts in parallel to the new budget line at the same prices p′, and the consumer moves from B to <b class="cC">C</b> = (${f(R.C[0])}, ${f(R.C[1])}). This is the <b class="cC">income effect</b>. A → C is the total (Marshallian) effect.`;
@@ -490,19 +654,43 @@ function interpretation(R) {
   return out.join(' ');
 }
 
+// numerical derivatives at the starting point A (central differences)
+function derivatives(R) {
+  const T = UT[S.util], P = S.params, p = [R.p1, R.p2], M = R.M, u0 = R.u0, eM = 1e-5 * M;
+  const D = (pp, MM) => T.marshall(pp[0], pp[1], MM, P), h = (pp, uu) => T.hicks(pp[0], pp[1], uu, P);
+  const bump = (j, s) => p.map((v, k) => k === j ? v * (1 + s * 1e-5) : v);
+  const x = D(p, M);
+  const dDdM = [0, 1].map(i => (D(p, M + eM)[i] - D(p, M - eM)[i]) / (2 * eM));
+  const dDdp = [0, 1].map(i => [0, 1].map(j => (D(bump(j, 1), M)[i] - D(bump(j, -1), M)[i]) / (2e-5 * p[j])));
+  const dhdp = [0, 1].map(i => [0, 1].map(j => (h(bump(j, 1), u0)[i] - h(bump(j, -1), u0)[i]) / (2e-5 * p[j])));
+  const v = MM => vOf(T, p[0], p[1], MM, P), eu = 1e-5 * Math.max(Math.abs(u0), 1e-300);
+  const lamNum = (v(M + eM) - v(M - eM)) / (2 * eM);
+  const lamClosed = T.lam ? T.lam(p[0], p[1], M, P) : undefined;
+  const dmdu = (mOf(T, p[0], p[1], u0 + eu, P) - mOf(T, p[0], p[1], u0 - eu, P)) / (2 * eu);
+  return { x, dDdM, dDdp, dhdp, lamNum, lamClosed, dmdu };
+}
+
 function slutskyBox(R) {
-  const T = UT[S.util], P = S.params, p1 = R.p1, p2 = R.p2, M = R.M, x1 = R.A[0];
-  const e = 1e-5 * p1, eM = 1e-5 * M;
-  const dxdp = (T.marshall(p1 + e, p2, M, P)[0] - T.marshall(p1 - e, p2, M, P)[0]) / (2 * e);
-  const dhdp = (T.hicks(p1 + e, p2, R.u0, P)[0] - T.hicks(p1 - e, p2, R.u0, P)[0]) / (2 * e);
-  const dxdM = (T.marshall(p1, p2, M + eM, P)[0] - T.marshall(p1, p2, M - eM, P)[0]) / (2 * eM);
-  const s1 = p1 * x1 / M, eta = x1 > 0 ? dxdM * M / x1 : NaN;
-  return `<div class="box"><h3>The Slutsky equation at A (an infinitesimal change in p₁)</h3>
-  <p class="hint">The decomposition above is for a discrete price change. For a very small change in p₁ the same split is the Slutsky equation. The derivatives below are computed numerically at A.</p>
-  <div class="calc">∂x₁/∂p₁ &nbsp;=&nbsp; ∂h₁/∂p₁ &nbsp;−&nbsp; x₁·∂x₁/∂M</div>
-  <div class="calc">${fd(dxdp)} &nbsp;=&nbsp; <span class="cB">${fd(dhdp)}</span> &nbsp;−&nbsp; <span class="cC">${f(x1)}·${fd(dxdM)}</span> &nbsp;=&nbsp; <span class="cB">${fd(dhdp)}</span> <span class="cC">${dxdM * x1 >= 0 ? '−' : '+'} ${fd(Math.abs(x1 * dxdM))}</span></div>
-  <div class="calc">total &nbsp;=&nbsp; <span class="cB">substitution</span> &nbsp;+&nbsp; <span class="cC">income</span></div>
-  <p class="hint">The income term is x₁·∂x₁/∂M: a price rise of dp₁ costs the consumer about x₁·dp₁ in purchasing power. In elasticity form, ε₁₁ = ε<sup>h</sup>₁₁ − s₁η₁, where the budget share is s₁ = p₁x₁/M = ${f(s1)}, the income elasticity is η₁ = ${fd(eta)} and the income term is s₁η₁ = ${fd(s1 * eta)}. A good with a small budget share has a small income effect.</p></div>`;
+  const T = UT[S.util], P = S.params, d = derivatives(R), x = d.x, M = R.M, x1 = x[0];
+  let rows = '', allOk = true;
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const lhs = d.dDdp[i][j], se = d.dhdp[i][j], ie = -d.dDdM[i] * x[j];
+    const ok = Math.abs(lhs - (se + ie)) <= 1e-4 * Math.max(1, Math.abs(lhs), Math.abs(se), Math.abs(ie));
+    allOk = allOk && ok;
+    rows += `<tr><td>i = ${i + 1}, j = ${j + 1}</td><td>${fd(lhs)}</td><td class="cB">${fd(se)}</td><td class="cC">${fd(ie)}</td><td>${fd(se + ie)}</td><td class="${ok ? 'ok' : 'bad'}">${ok ? '✓' : '✗'}</td></tr>`;
+  }
+  const s1 = R.p1 * x1 / M, eta = x1 > 0 ? d.dDdM[0] * M / x1 : NaN;
+  const lam = d.lamClosed !== undefined ? d.lamClosed : d.lamNum;
+  const lf = T.lamForm ? T.lamForm(P) : '';
+  return `<div class="box"><h3>The Slutsky equation at A (infinitesimal price changes)</h3>
+  <p class="hint">The decomposition above is for a discrete price change. For very small price changes the same split is the Slutsky equation. All derivatives are computed numerically (central finite differences) at the starting point A, with u₀ = v(p, M).</p>
+  <div class="calc">∂D<sub>i</sub>/∂p<sub>j</sub> &nbsp;=&nbsp; <span class="cB">∂h<sub>i</sub>/∂p<sub>j</sub></span> &nbsp;−&nbsp; <span class="cC">(∂D<sub>i</sub>/∂M)·D<sub>j</sub></span>, &nbsp; i.e. &nbsp; total = <span class="cB">substitution effect (SE)</span> + <span class="cC">income effect (IE)</span></div>
+  <div class="calc">D(p, M) = (${f(x[0])}, ${f(x[1])}), &nbsp; ∂D₁/∂M = ${fd(d.dDdM[0])}, &nbsp; ∂D₂/∂M = ${fd(d.dDdM[1])}</div>
+  <div class="tw"><table><tr><th></th><th>∂D<sub>i</sub>/∂p<sub>j</sub></th><th class="cB">SE = ∂h<sub>i</sub>/∂p<sub>j</sub></th><th class="cC">IE = −(∂D<sub>i</sub>/∂M)·D<sub>j</sub></th><th>SE + IE</th><th>Check</th></tr>${rows}</table></div>
+  ${allOk ? '' : '<p class="hint"><span class="warn">At least one row fails.</span> This happens at a kink or a corner (or right at a switch between them), where the demand functions are not differentiable and finite differences do not measure derivatives.</p>'}
+  <div class="calc">λ = ∂v/∂M = ${fd(lam)}${lf ? ` &nbsp; (${lf}; numerically ${fd(d.lamNum)})` : ' &nbsp; (numerically)'}</div>
+  <div class="calc">μ = 1/λ = ${fd(1 / lam)} &nbsp; (= ∂m/∂ū, the marginal cost of utility; numerically ∂m/∂ū = ${fd(d.dmdu)})</div>
+  <p class="hint">The income term for i = j = 1 is D₁·∂D₁/∂M: a price rise of dp₁ costs the consumer about D₁·dp₁ in purchasing power. In elasticity form, ε₁₁ = ε<sup>h</sup>₁₁ − s₁η₁, where the budget share is s₁ = p₁D₁/M = ${f(s1)}, the income elasticity is η₁ = ${fd(eta)} and the income term is s₁η₁ = ${fd(s1 * eta)}. A good with a small budget share has a small income effect.</p></div>`;
 }
 
 function renderCalc(R) {
@@ -520,7 +708,7 @@ function renderCalc(R) {
     h += lines([`M = m(p, ū) = p₁h₁ + p₂h₂ = ${f(R.p1)}·${f(R.A[0])} + ${f(R.p2)}·${f(R.A[1])} = ${b(f(R.M))} &nbsp; (the consumer's income from now on)`]);
   }
 
-  h += `<h3><span class="dot" style="background:var(--C)"></span> Step 2 · New bundle C = x(p′, M) at p′ = (${f(R.q1)}, ${f(R.q2)}), same income M = ${f(R.M)}</h3>`;
+  h += `<h3><span class="dot" style="background:var(--C)"></span> Step 2 · New bundle C = D(p′, M) at p′ = (${f(R.q1)}, ${f(R.q2)}), same income M = ${f(R.M)}</h3>`;
   h += lines(T.mCalc(R.q1, R.q2, R.M, P, R.C));
   h += lines([T.uCalc(R.C, P, R.u1)]);
 
@@ -528,24 +716,30 @@ function renderCalc(R) {
   if (H) {
     h += lines(T.hCalc(R.q1, R.q2, R.u0, P, R.B));
     h += lines([`m(p′, u₀) = p₁′h₁ + p₂′h₂ = ${f(R.q1)}·${f(R.B[0])} + ${f(R.q2)}·${f(R.B[1])} = ${b(f(R.Mc))}`,
-                `Compensation (the cheque) = m(p′, u₀) − M = ${f(R.Mc)} − ${f(R.M)} = ${b(f(R.cheque))} &nbsp; (this is the compensating variation)`]);
+                `Compensation (the cheque) = m(p′, u₀) − M = ${f(R.Mc)} − ${f(R.M)} = ${b(f(R.cheque))} &nbsp; (= −CV, see step 5)`]);
   } else {
     h += lines([`M′ = p′·x<sub>A</sub> = ${f(R.q1)}·${f(R.A[0])} + ${f(R.q2)}·${f(R.A[1])} = ${b(f(R.Mc))}`,
                 `Compensation (the cheque) = M′ − M = ${f(R.Mc)} − ${f(R.M)} = ${b(f(R.cheque))}`]);
     h += lines(T.mCalc(R.q1, R.q2, R.Mc, P, R.B));
-    h += lines([T.uCalc(R.B, P, R.uB) + (R.uB > R.u0 + 1e-6 ? ' &nbsp; (> u₀: Slutsky compensation slightly over-compensates)' : '')]);
+    h += lines([T.uCalc(R.B, P, R.uB) + (R.uB > R.u0 && !sameU(R.uB, R.u0) ? ' &nbsp; (> u₀: Slutsky compensation slightly over-compensates)' : '')]);
   }
 
   h += `<h3>Step 4 · Decomposition</h3>
-  <table><tr><th></th><th class="cB">Substitution (B − A)</th><th class="cC">Income (C − B)</th><th>Total (C − A)</th></tr>
+  <div class="tw"><table><tr><th></th><th class="cB">Substitution (B − A)</th><th class="cC">Income (C − B)</th><th>Total (C − A)</th></tr>
   <tr><td>Good 1</td><td>${f(R.B[0])} − ${f(R.A[0])} = <b>${fs(R.B[0] - R.A[0])}</b></td><td>${f(R.C[0])} − ${f(R.B[0])} = <b>${fs(R.C[0] - R.B[0])}</b></td><td><b>${fs(R.C[0] - R.A[0])}</b></td></tr>
-  <tr><td>Good 2</td><td>${f(R.B[1])} − ${f(R.A[1])} = <b>${fs(R.B[1] - R.A[1])}</b></td><td>${f(R.C[1])} − ${f(R.B[1])} = <b>${fs(R.C[1] - R.B[1])}</b></td><td><b>${fs(R.C[1] - R.A[1])}</b></td></tr></table>
+  <tr><td>Good 2</td><td>${f(R.B[1])} − ${f(R.A[1])} = <b>${fs(R.B[1] - R.A[1])}</b></td><td>${f(R.C[1])} − ${f(R.B[1])} = <b>${fs(R.C[1] - R.B[1])}</b></td><td><b>${fs(R.C[1] - R.A[1])}</b></td></tr></table></div>
   <p>${interpretation(R)}</p>`;
 
-  h += `<table><tr><th>Bundle</th><th>x₁</th><th>x₂</th><th>Prices</th><th>Expenditure</th><th>Utility</th></tr>
-  <tr><td class="cA"><b>A</b> original</td><td>${f(R.A[0])}</td><td>${f(R.A[1])}</td><td>p</td><td>${f(R.M)}</td><td>${f(R.u0)}</td></tr>
-  <tr><td class="cB"><b>B</b> compensated</td><td>${f(R.B[0])}</td><td>${f(R.B[1])}</td><td>p′</td><td>${f(R.Mc)}</td><td>${f(R.uB)}</td></tr>
-  <tr><td class="cC"><b>C</b> new</td><td>${f(R.C[0])}</td><td>${f(R.C[1])}</td><td>p′</td><td>${f(R.M)}</td><td>${f(R.u1)}</td></tr></table>`;
+  h += `<h3>Step 5 · Welfare: compensating and equivalent variation</h3>`;
+  h += lines([`u₀ = v(p, M) = ${fu(R.u0)}, &nbsp; u₁ = v(p′, M) = ${fu(R.u1)}`,
+    `CV = M − m(p′, u₀) = ${f(R.M)} − ${f(R.mq0)} = ${b(f(R.CV))} &nbsp; (the income that can be taken away at the new prices p′ leaving the consumer at u₀)`,
+    `EV = m(p, u₁) − M = ${f(R.mp1)} − ${f(R.M)} = ${b(f(R.EV))} &nbsp; (the change in income at the old prices p that is as good as the price change)`]);
+  h += `<p class="hint">Positive CV and EV mean that the price change makes the consumer better off. ${Math.abs(R.CV - R.EV) < 1e-6 * (1 + Math.abs(R.CV)) ? 'Here CV = EV: there is no income effect on the goods whose prices changed.' : 'CV ≠ EV because of income effects.'}</p>`;
+
+  h += `<div class="tw"><table><tr><th>Bundle</th><th>x₁</th><th>x₂</th><th>Prices</th><th>Expenditure</th><th>Utility</th></tr>
+  <tr><td class="cA"><b>A</b> original</td><td>${f(R.A[0])}</td><td>${f(R.A[1])}</td><td>p</td><td>${f(R.M)}</td><td>${fu(R.u0)}</td></tr>
+  <tr><td class="cB"><b>B</b> compensated</td><td>${f(R.B[0])}</td><td>${f(R.B[1])}</td><td>p′</td><td>${f(R.Mc)}</td><td>${fu(R.uB)}</td></tr>
+  <tr><td class="cC"><b>C</b> new</td><td>${f(R.C[0])}</td><td>${f(R.C[1])}</td><td>p′</td><td>${f(R.M)}</td><td>${fu(R.u1)}</td></tr></table></div>`;
 
   h += slutskyBox(R);
   $('calc').innerHTML = h;
@@ -570,9 +764,13 @@ function renderLegend() {
 
 // ---------- main update ----------
 function update(q1, q2, scaleR) {
-  const R = compute(q1 !== undefined ? q1 : S.q1, q2 !== undefined ? q2 : S.q2);
-  const ok = [...R.A, ...R.B, ...R.C, R.M].every(isFinite);
-  if (!ok) { $('caption').innerHTML = '<span class="warn">These values give no well-defined solution. Try other parameters.</span>'; return; }
+  const T = UT[S.util];
+  $('paramNote').innerHTML = T.note ? T.note(S.params) : '';
+  const bad = T.invalid ? T.invalid(S.params) : '';
+  const R = bad ? null : compute(q1 !== undefined ? q1 : S.q1, q2 !== undefined ? q2 : S.q2);
+  const ok = R && [...R.A, ...R.B, ...R.C, R.M].every(isFinite);
+  if (!ok) { $('caption').innerHTML = `<span class="warn">${bad || 'These values give no well-defined solution. Try other parameters.'}</span>`; $('flags').innerHTML = ''; return; }
+  $('flags').innerHTML = (T.flags ? T.flags(R, S.params) : []).map(g => `<div class="${g.w ? 'w' : ''}">${g.h}</div>`).join('');
   const Sc = scaleFor(scaleR || R);
   const step = animating ? 3 : S.step;
   document.querySelectorAll('.steps button').forEach(btn => btn.classList.toggle('on', +btn.dataset.step === S.step));
@@ -591,14 +789,14 @@ $('util').addEventListener('change', e => {
   S.util = e.target.value; S.params = {};
   UT[S.util].params.forEach(p => S.params[p.k] = p.def);
   const T = UT[S.util];
-  S.u = +T.u(T.marshall(positive(S.p1), positive(S.p2), M, S.params), S.params).toFixed(2);
+  S.u = roundU(vOf(T, positive(S.p1), positive(S.p2), M, S.params));
   if (S.mode === 'M') S.M = Math.round(M);
   buildParams(); buildStart(); update();
 });
 document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', e => {
   const R = compute(S.q1, S.q2);
   S.mode = e.target.value;
-  if (S.mode === 'u') S.u = +R.u0.toFixed(2); else S.M = Math.round(R.M);
+  if (S.mode === 'u') S.u = roundU(R.u0); else S.M = +R.M.toPrecision(5);
   buildStart(); update();
 }));
 document.querySelectorAll('input[name=comp]').forEach(r => r.addEventListener('change', e => { S.comp = e.target.value; update(); }));
