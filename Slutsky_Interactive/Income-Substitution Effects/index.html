@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Income and Substitution Effects</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --panel: #f6f8fa; --grid: #eef1f4;
+  --A: #0969da; --B: #1a7f37; --C: #cf222e; --tot: #6e7781;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --panel: #151b23; --grid: #1c232c;
+    --A: #4493f8; --B: #3fb950; --C: #f85149; --tot: #9198a1;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.45rem; margin: 0.2em 0 0.1em; }
+h2 { font-size: 1.1rem; margin: 1.4em 0 0.5em; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+h3 { font-size: 0.98rem; margin: 1em 0 0.3em; }
+.sub { color: var(--muted); margin: 0 0 14px; }
+.layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 12px; padding: 8px 12px 10px; background: var(--panel); }
+legend { font-weight: 600; padding: 0 4px; }
+select { width: 100%; font: inherit; padding: 4px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; }
+.formula { margin: 6px 0 4px; font-family: "Cambria Math", Cambria, Georgia, serif; font-size: 1.02rem; }
+.row { display: grid; grid-template-columns: 1fr 74px; gap: 4px 8px; align-items: center; margin-top: 6px; }
+.row label { grid-column: 1 / 3; font-size: 0.9rem; color: var(--muted); }
+.row input[type=range] { width: 100%; }
+.row input[type=number] { width: 74px; font: inherit; padding: 2px 4px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 5px; }
+.radio { display: block; margin: 3px 0; cursor: pointer; }
+.hint { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
+button { font: inherit; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.caption { min-height: 3.2em; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
+svg { width: 100%; height: auto; display: block; }
+svg text { fill: var(--fg); font-family: system-ui, sans-serif; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.88rem; color: var(--muted); margin-top: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 22px; height: 0; border-top: 3px solid; }
+.sw.dash { border-top-style: dashed; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+@media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; border-left-width: 5px; }
+.card .t { font-size: 0.85rem; color: var(--muted); }
+.card .v { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; margin: 6px 0; }
+th, td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--muted); }
+.calc { font-family: "Cambria Math", Cambria, Georgia, serif; font-size: 1rem; margin: 2px 0 2px 12px; overflow-x: auto; }
+.box { border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px 10px; margin: 10px 0; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; }
+.warn { color: var(--C); font-weight: 600; }
+.cA { color: var(--A); } .cB { color: var(--B); } .cC { color: var(--C); }
+</style>
+</head>
+<body>
+<main>
+<h1>Income and substitution effects</h1>
+<p class="sub">Choose a utility function, a starting point and new prices. The diagram splits the move from the original bundle <b class="cA">A</b> to the new bundle <b class="cC">C</b> into a substitution effect (A → <b class="cB">B</b>) and an income effect (B → C). Use the step buttons to go through it one stage at a time.</p>
+
+<div class="layout">
+<section id="controls">
+  <fieldset>
+    <legend>Utility function</legend>
+    <select id="util"></select>
+    <div class="formula" id="utilForm"></div>
+    <div id="params"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Starting point (prices p)</legend>
+    <label class="radio"><input type="radio" name="mode" value="M" checked> Given income <i>M</i> (start from x(p, M))</label>
+    <label class="radio"><input type="radio" name="mode" value="u"> Given utility <i>ū</i> (start from h(p, ū))</label>
+    <div id="startCtl"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>New prices p′</legend>
+    <div id="newCtl"></div>
+    <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap">
+      <button id="animBtn">▶ Animate the price change</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Compensation</legend>
+    <label class="radio"><input type="radio" name="comp" value="hicks" checked> Hicks: keep utility at u₀</label>
+    <label class="radio"><input type="radio" name="comp" value="slutsky"> Slutsky: keep the old bundle A affordable</label>
+    <p class="hint">The compensated budget line has the new prices p′ and just enough income to reach u₀ (Hicks) or to buy A (Slutsky).</p>
+  </fieldset>
+</section>
+
+<section>
+  <div class="steps">
+    <button data-step="1">1 · Before</button>
+    <button data-step="2">2 · Prices change + cheque</button>
+    <button data-step="3">3 · Cheque taken back</button>
+  </div>
+  <div class="caption" id="caption"></div>
+  <svg id="plot" viewBox="0 0 660 560" role="img" aria-label="Budget lines, indifference curves and bundles A, B and C"></svg>
+  <div class="legend" id="legend"></div>
+  <div class="cards" id="cards"></div>
+</section>
+</div>
+
+<h2>Calculations</h2>
+<div id="calc"></div>
+</main>
+
+<script>
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+function f(x) {
+  if (!isFinite(x)) return '—';
+  let r = Math.round(x * 1000) / 1000;
+  if (Math.abs(r) < 1e-9) r = 0;
+  return r.toString().replace('-', '−');
+}
+function fd(x) { // derivatives: 4 significant digits
+  if (!isFinite(x)) return '—';
+  if (Math.abs(x) < 1e-8) return '0';
+  return Number(x.toPrecision(4)).toString().replace('-', '−');
+}
+function fs(x) { const s = f(x); return (x > 0 && s !== '0') ? '+' + s : s; }
+function fp(x) { return x < 0 ? '(' + f(x) + ')' : f(x); }
+const b = s => `<b>${s}</b>`;
+
+// ---------- utility functions ----------
+// Each: u(x,P), marshall(p1,p2,M,P), hicks(p1,p2,u,P), ic(u,x1,P) or icPoly, theory, mCalc, hCalc, uCalc
+const cesOne = P => Math.abs(P.s - 1) < 1e-9;
+const cesD = (p1, p2, P) => Math.pow(P.a, P.s) * Math.pow(p1, 1 - P.s) + Math.pow(1 - P.a, P.s) * Math.pow(p2, 1 - P.s);
+
+const UT = {
+  cd: {
+    name: 'Cobb–Douglas',
+    form: 'u(x₁, x₂) = x₁<sup>a</sup> x₂<sup>1−a</sup>',
+    params: [{ k: 'a', label: 'a (weight on good 1)', min: 0.05, max: 0.95, step: 0.05, def: 0.5 }],
+    u: (x, P) => Math.pow(x[0], P.a) * Math.pow(x[1], 1 - P.a),
+    marshall: (p1, p2, M, P) => [P.a * M / p1, (1 - P.a) * M / p2],
+    hicks: (p1, p2, u, P) => { const a = P.a; return [u * Math.pow(a * p2 / ((1 - a) * p1), 1 - a), u * Math.pow((1 - a) * p1 / (a * p2), a)]; },
+    ic: (u, x, P) => Math.pow(u / Math.pow(x, P.a), 1 / (1 - P.a)),
+    theory: () => [
+      'x₁(p, M) = aM / p₁, &nbsp;&nbsp; x₂(p, M) = (1−a)M / p₂',
+      'h₁(p, ū) = ū·[a p₂ / ((1−a) p₁)]<sup>1−a</sup>, &nbsp;&nbsp; h₂(p, ū) = ū·[(1−a) p₁ / (a p₂)]<sup>a</sup>',
+      'm(p, ū) = ū·(p₁/a)<sup>a</sup>·(p₂/(1−a))<sup>1−a</sup>',
+      'v(p, M) = M·(a/p₁)<sup>a</sup>·((1−a)/p₂)<sup>1−a</sup>',
+      'Budget shares are constant: p₁x₁/M = a. Both goods are normal.'],
+    mCalc: (p1, p2, M, P, x) => { const a = P.a; return [
+      `x₁ = aM/p₁ = ${f(a)}·${f(M)}/${f(p1)} = ${b(f(x[0]))}`,
+      `x₂ = (1−a)M/p₂ = ${f(1 - a)}·${f(M)}/${f(p2)} = ${b(f(x[1]))}`]; },
+    hCalc: (p1, p2, u, P, h) => { const a = P.a; return [
+      `h₁ = ū·[a p₂/((1−a) p₁)]<sup>1−a</sup> = ${f(u)}·[${f(a)}·${f(p2)}/(${f(1 - a)}·${f(p1)})]<sup>${f(1 - a)}</sup> = ${b(f(h[0]))}`,
+      `h₂ = ū·[(1−a) p₁/(a p₂)]<sup>a</sup> = ${f(u)}·[${f(1 - a)}·${f(p1)}/(${f(a)}·${f(p2)})]<sup>${f(a)}</sup> = ${b(f(h[1]))}`]; },
+    uCalc: (x, P, u) => `u = x₁<sup>a</sup> x₂<sup>1−a</sup> = ${f(x[0])}<sup>${f(P.a)}</sup>·${f(x[1])}<sup>${f(1 - P.a)}</sup> = ${b(f(u))}`
+  },
+
+  ces: {
+    name: 'CES',
+    form: 'u = [a x₁<sup>ρ</sup> + (1−a) x₂<sup>ρ</sup>]<sup>1/ρ</sup>, &nbsp; ρ = (σ−1)/σ',
+    params: [{ k: 'a', label: 'a (weight on good 1)', min: 0.05, max: 0.95, step: 0.05, def: 0.5 },
+             { k: 's', label: 'σ (elasticity of substitution)', min: 0.1, max: 4, step: 0.1, def: 0.5 }],
+    u: (x, P) => { if (cesOne(P)) return UT.cd.u(x, P); const r = (P.s - 1) / P.s;
+      return Math.pow(P.a * Math.pow(x[0], r) + (1 - P.a) * Math.pow(x[1], r), 1 / r); },
+    marshall: (p1, p2, M, P) => { if (cesOne(P)) return UT.cd.marshall(p1, p2, M, P);
+      const D = cesD(p1, p2, P);
+      return [M * Math.pow(P.a, P.s) * Math.pow(p1, -P.s) / D, M * Math.pow(1 - P.a, P.s) * Math.pow(p2, -P.s) / D]; },
+    hicks: (p1, p2, u, P) => { if (cesOne(P)) return UT.cd.hicks(p1, p2, u, P);
+      const Pi = Math.pow(cesD(p1, p2, P), 1 / (1 - P.s)), k = Math.pow(Pi, P.s);
+      return [u * Math.pow(P.a, P.s) * Math.pow(p1, -P.s) * k, u * Math.pow(1 - P.a, P.s) * Math.pow(p2, -P.s) * k]; },
+    ic: (u, x, P) => { if (cesOne(P)) return UT.cd.ic(u, x, P); const r = (P.s - 1) / P.s;
+      const inner = (Math.pow(u, r) - P.a * Math.pow(x, r)) / (1 - P.a);
+      return inner > 0 ? Math.pow(inner, 1 / r) : NaN; },
+    theory: P => cesOne(P) ? ['σ = 1 is the Cobb–Douglas case.'].concat(UT.cd.theory(P)) : [
+      'D(p) = a<sup>σ</sup> p₁<sup>1−σ</sup> + (1−a)<sup>σ</sup> p₂<sup>1−σ</sup>, &nbsp;&nbsp; price index P(p) = D(p)<sup>1/(1−σ)</sup>',
+      'x₁(p, M) = M a<sup>σ</sup> p₁<sup>−σ</sup> / D, &nbsp;&nbsp; x₂(p, M) = M (1−a)<sup>σ</sup> p₂<sup>−σ</sup> / D',
+      'h₁(p, ū) = ū a<sup>σ</sup> p₁<sup>−σ</sup> P<sup>σ</sup>, &nbsp;&nbsp; h₂(p, ū) = ū (1−a)<sup>σ</sup> p₂<sup>−σ</sup> P<sup>σ</sup>',
+      'm(p, ū) = ū·P(p), &nbsp;&nbsp; v(p, M) = M / P(p)',
+      'σ → 0: perfect complements; σ = 1: Cobb–Douglas; σ → ∞: perfect substitutes. A larger σ gives a larger substitution effect.'],
+    mCalc: (p1, p2, M, P, x) => { if (cesOne(P)) return UT.cd.mCalc(p1, p2, M, P, x);
+      const a = P.a, s = P.s, D = cesD(p1, p2, P); return [
+      `D = a<sup>σ</sup>p₁<sup>1−σ</sup> + (1−a)<sup>σ</sup>p₂<sup>1−σ</sup> = ${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(1 - s)}</sup> + ${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(1 - s)}</sup> = ${f(D)}`,
+      `x₁ = M a<sup>σ</sup> p₁<sup>−σ</sup> / D = ${f(M)}·${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(-s)}</sup> / ${f(D)} = ${b(f(x[0]))}`,
+      `x₂ = M (1−a)<sup>σ</sup> p₂<sup>−σ</sup> / D = ${f(M)}·${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(-s)}</sup> / ${f(D)} = ${b(f(x[1]))}`]; },
+    hCalc: (p1, p2, u, P, h) => { if (cesOne(P)) return UT.cd.hCalc(p1, p2, u, P, h);
+      const a = P.a, s = P.s, D = cesD(p1, p2, P), Pi = Math.pow(D, 1 / (1 - s)); return [
+      `D = ${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(1 - s)}</sup> + ${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(1 - s)}</sup> = ${f(D)}, &nbsp; P = D<sup>1/(1−σ)</sup> = ${f(D)}<sup>${f(1 / (1 - s))}</sup> = ${f(Pi)}`,
+      `h₁ = ū a<sup>σ</sup> p₁<sup>−σ</sup> P<sup>σ</sup> = ${f(u)}·${f(a)}<sup>${f(s)}</sup>·${f(p1)}<sup>${f(-s)}</sup>·${f(Pi)}<sup>${f(s)}</sup> = ${b(f(h[0]))}`,
+      `h₂ = ū (1−a)<sup>σ</sup> p₂<sup>−σ</sup> P<sup>σ</sup> = ${f(u)}·${f(1 - a)}<sup>${f(s)}</sup>·${f(p2)}<sup>${f(-s)}</sup>·${f(Pi)}<sup>${f(s)}</sup> = ${b(f(h[1]))}`]; },
+    uCalc: (x, P, u) => { if (cesOne(P)) return UT.cd.uCalc(x, P, u); const r = (P.s - 1) / P.s;
+      return `u = [a x₁<sup>ρ</sup> + (1−a) x₂<sup>ρ</sup>]<sup>1/ρ</sup>, ρ = ${f(r)}: &nbsp; [${f(P.a)}·${f(x[0])}<sup>${f(r)}</sup> + ${f(1 - P.a)}·${f(x[1])}<sup>${f(r)}</sup>]<sup>${f(1 / r)}</sup> = ${b(f(u))}`; }
+  },
+
+  leon: {
+    name: 'Perfect complements',
+    form: 'u = min{ x₁/a, x₂/(1−a) }',
+    params: [{ k: 'a', label: 'a (share of good 1 in the fixed bundle)', min: 0.05, max: 0.95, step: 0.05, def: 0.5 }],
+    u: (x, P) => Math.min(x[0] / P.a, x[1] / (1 - P.a)),
+    marshall: (p1, p2, M, P) => { const k = M / (P.a * p1 + (1 - P.a) * p2); return [P.a * k, (1 - P.a) * k]; },
+    hicks: (p1, p2, u, P) => [P.a * u, (1 - P.a) * u],
+    icPoly: (u, P, X, Y) => [[[P.a * u, Y * 3], [P.a * u, (1 - P.a) * u], [X * 3, (1 - P.a) * u]]],
+    theory: () => [
+      'The consumer always buys at the kink: x₂/x₁ = (1−a)/a.',
+      'x₁(p, M) = aM / (a p₁ + (1−a) p₂), &nbsp;&nbsp; x₂(p, M) = (1−a)M / (a p₁ + (1−a) p₂)',
+      'h₁(p, ū) = a ū, &nbsp;&nbsp; h₂(p, ū) = (1−a) ū &nbsp; (no price in it: zero substitution effect)',
+      'm(p, ū) = ū (a p₁ + (1−a) p₂), &nbsp;&nbsp; v(p, M) = M / (a p₁ + (1−a) p₂)'],
+    mCalc: (p1, p2, M, P, x) => { const a = P.a, d = a * p1 + (1 - a) * p2; return [
+      `a p₁ + (1−a) p₂ = ${f(a)}·${f(p1)} + ${f(1 - a)}·${f(p2)} = ${f(d)}`,
+      `x₁ = aM / ${f(d)} = ${f(a)}·${f(M)}/${f(d)} = ${b(f(x[0]))}, &nbsp;&nbsp; x₂ = (1−a)M / ${f(d)} = ${f(1 - a)}·${f(M)}/${f(d)} = ${b(f(x[1]))}`]; },
+    hCalc: (p1, p2, u, P, h) => [
+      `h₁ = a ū = ${f(P.a)}·${f(u)} = ${b(f(h[0]))}, &nbsp;&nbsp; h₂ = (1−a) ū = ${f(1 - P.a)}·${f(u)} = ${b(f(h[1]))}`],
+    uCalc: (x, P, u) => `u = min{ x₁/a, x₂/(1−a) } = min{ ${f(x[0] / P.a)}, ${f(x[1] / (1 - P.a))} } = ${b(f(u))}`
+  },
+
+  subs: {
+    name: 'Perfect substitutes',
+    form: 'u = a x₁ + (1−a) x₂',
+    params: [{ k: 'a', label: 'a (marginal utility of good 1)', min: 0.05, max: 0.95, step: 0.05, def: 0.6 }],
+    u: (x, P) => P.a * x[0] + (1 - P.a) * x[1],
+    marshall: (p1, p2, M, P) => { const r1 = P.a / p1, r2 = (1 - P.a) / p2;
+      if (Math.abs(r1 - r2) < 1e-12) return [M / (2 * p1), M / (2 * p2)];
+      return r1 > r2 ? [M / p1, 0] : [0, M / p2]; },
+    hicks: (p1, p2, u, P) => { const r1 = P.a / p1, r2 = (1 - P.a) / p2;
+      if (Math.abs(r1 - r2) < 1e-12) return [u / (2 * P.a), u / (2 * (1 - P.a))];
+      return r1 > r2 ? [u / P.a, 0] : [0, u / (1 - P.a)]; },
+    icPoly: (u, P) => [[[u / P.a, 0], [0, u / (1 - P.a)]]],
+    theory: () => [
+      'Spend everything on the good with the higher marginal utility per krona: compare a/p₁ with (1−a)/p₂. If they are equal any split is optimal; this page splits spending half and half.',
+      'x = (M/p₁, 0) if a/p₁ > (1−a)/p₂, &nbsp;&nbsp; x = (0, M/p₂) if a/p₁ < (1−a)/p₂',
+      'h = (ū/a, 0) or (0, ū/(1−a)) by the same comparison',
+      'm(p, ū) = ū·min{ p₁/a, p₂/(1−a) }, &nbsp;&nbsp; v(p, M) = M·max{ a/p₁, (1−a)/p₂ }'],
+    mCalc: (p1, p2, M, P, x) => { const r1 = P.a / p1, r2 = (1 - P.a) / p2, c = Math.abs(r1 - r2) < 1e-12 ? '=' : (r1 > r2 ? '>' : '<'); return [
+      `a/p₁ = ${f(P.a)}/${f(p1)} = ${f(r1)} &nbsp;${c}&nbsp; (1−a)/p₂ = ${f(1 - P.a)}/${f(p2)} = ${f(r2)}`,
+      `⇒ x = (${b(f(x[0]))}, ${b(f(x[1]))})`]; },
+    hCalc: (p1, p2, u, P, h) => { const r1 = P.a / p1, r2 = (1 - P.a) / p2, c = Math.abs(r1 - r2) < 1e-12 ? '=' : (r1 > r2 ? '>' : '<'); return [
+      `a/p₁ = ${f(r1)} &nbsp;${c}&nbsp; (1−a)/p₂ = ${f(r2)}`,
+      `⇒ h = (${b(f(h[0]))}, ${b(f(h[1]))}) &nbsp; (ū/a = ${f(u / P.a)}, ū/(1−a) = ${f(u / (1 - P.a))})`]; },
+    uCalc: (x, P, u) => `u = a x₁ + (1−a) x₂ = ${f(P.a)}·${f(x[0])} + ${f(1 - P.a)}·${f(x[1])} = ${b(f(u))}`
+  },
+
+  ql: {
+    name: 'Quasilinear',
+    form: 'u = A ln x₁ + x₂',
+    uMin: -100,
+    params: [{ k: 'A', label: 'A (weight on good 1)', min: 1, max: 100, step: 1, def: 20 }],
+    u: (x, P) => P.A * Math.log(x[0]) + x[1],
+    marshall: (p1, p2, M, P) => M >= P.A * p2 ? [P.A * p2 / p1, M / p2 - P.A] : [M / p1, 0],
+    hicks: (p1, p2, u, P) => { const h1 = P.A * p2 / p1, h2 = u - P.A * Math.log(h1);
+      return h2 >= 0 ? [h1, h2] : [Math.exp(u / P.A), 0]; },
+    ic: (u, x, P) => { const y = u - P.A * Math.log(x); return y >= 0 ? y : NaN; },
+    theory: () => [
+      'Interior solution (when M ≥ A p₂): x₁ = A p₂ / p₁, &nbsp;&nbsp; x₂ = M/p₂ − A. Otherwise there is a corner: x₁ = M/p₁, x₂ = 0.',
+      'h₁(p, ū) = A p₂ / p₁, &nbsp;&nbsp; h₂(p, ū) = ū − A ln(A p₂ / p₁) &nbsp; (if this is ≥ 0)',
+      'm(p, ū) = A p₂ + p₂ [ū − A ln(A p₂ / p₁)], &nbsp;&nbsp; v(p, M) = A ln(A p₂ / p₁) + M/p₂ − A',
+      'At an interior solution x₁ does not depend on M, so the income effect on good 1 is zero and x₁ = h₁.'],
+    mCalc: (p1, p2, M, P, x) => M >= P.A * p2 ? [
+      `M = ${f(M)} ≥ A p₂ = ${f(P.A * p2)}: interior solution`,
+      `x₁ = A p₂/p₁ = ${f(P.A)}·${f(p2)}/${f(p1)} = ${b(f(x[0]))}, &nbsp;&nbsp; x₂ = M/p₂ − A = ${f(M)}/${f(p2)} − ${f(P.A)} = ${b(f(x[1]))}`] : [
+      `M = ${f(M)} < A p₂ = ${f(P.A * p2)}: corner solution`,
+      `x₁ = M/p₁ = ${f(M)}/${f(p1)} = ${b(f(x[0]))}, &nbsp;&nbsp; x₂ = ${b('0')}`],
+    hCalc: (p1, p2, u, P, h) => { const h1 = P.A * p2 / p1, h2 = u - P.A * Math.log(h1);
+      return h2 >= 0 ? [
+        `h₁ = A p₂/p₁ = ${f(P.A)}·${f(p2)}/${f(p1)} = ${b(f(h[0]))}`,
+        `h₂ = ū − A ln h₁ = ${f(u)} − ${f(P.A)}·ln(${f(h1)}) = ${b(f(h[1]))}`] : [
+        `ū − A ln(A p₂/p₁) = ${f(h2)} < 0: corner, h₂ = ${b('0')}`,
+        `h₁ = e<sup>ū/A</sup> = e<sup>${f(u / P.A)}</sup> = ${b(f(h[0]))}`]; },
+    uCalc: (x, P, u) => `u = A ln x₁ + x₂ = ${f(P.A)}·ln(${f(x[0])}) + ${f(x[1])} = ${b(f(u))}`
+  }
+};
+
+// ---------- state ----------
+const DEF = { util: 'cd', mode: 'M', p1: 1, p2: 1, M: 100, u: 50, q1: 4, q2: 1, comp: 'hicks', step: 3 };
+let S = {};
+let animating = false;
+
+function resetState() {
+  S = JSON.parse(JSON.stringify(DEF));
+  S.params = {};
+  UT[S.util].params.forEach(p => S.params[p.k] = p.def);
+}
+
+// ---------- controls ----------
+function slider(container, key, label, min, max, step, obj) {
+  obj = obj || S;
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}"><input type="number" step="any">`;
+  const [r, n] = row.querySelectorAll('input');
+  r.value = obj[key]; n.value = obj[key];
+  r.addEventListener('input', () => { obj[key] = +r.value; n.value = r.value; update(); });
+  n.addEventListener('change', () => {
+    let v = parseFloat(n.value);
+    if (!isFinite(v)) { n.value = obj[key]; return; }
+    obj[key] = v; r.value = v; update();
+  });
+  container.appendChild(row);
+}
+function positive(v) { return Math.max(v, 0.01); }
+
+function buildParams() {
+  const T = UT[S.util];
+  $('utilForm').innerHTML = T.form;
+  const c = $('params'); c.innerHTML = '';
+  T.params.forEach(p => slider(c, p.k, p.label, p.min, p.max, p.step, S.params));
+}
+function buildStart() {
+  const c = $('startCtl'); c.innerHTML = '';
+  slider(c, 'p1', 'p₁', 0.1, 10, 0.1);
+  slider(c, 'p2', 'p₂', 0.1, 10, 0.1);
+  if (S.mode === 'M') slider(c, 'M', 'Income M', 1, 500, 1);
+  else {
+    const lo = UT[S.util].uMin !== undefined ? UT[S.util].uMin : 0.1;
+    slider(c, 'u', 'Utility ū', lo, Math.max(300, Math.ceil(2 * S.u)), 0.1);
+  }
+}
+function buildNew() {
+  const c = $('newCtl'); c.innerHTML = '';
+  slider(c, 'q1', 'p₁′', 0.1, 10, 0.1);
+  slider(c, 'q2', 'p₂′', 0.1, 10, 0.1);
+}
+function buildAll() {
+  $('util').value = S.util;
+  document.querySelector(`input[name=mode][value=${S.mode}]`).checked = true;
+  document.querySelector(`input[name=comp][value=${S.comp}]`).checked = true;
+  buildParams(); buildStart(); buildNew(); update();
+}
+
+// ---------- model ----------
+function compute(q1, q2) {
+  const T = UT[S.util], P = S.params;
+  const p1 = positive(S.p1), p2 = positive(S.p2);
+  q1 = positive(q1); q2 = positive(q2);
+  let A, M, u0;
+  if (S.mode === 'M') { M = positive(S.M); A = T.marshall(p1, p2, M, P); u0 = T.u(A, P); }
+  else { u0 = S.u; A = T.hicks(p1, p2, u0, P); M = p1 * A[0] + p2 * A[1]; }
+  const C = T.marshall(q1, q2, M, P), u1 = T.u(C, P);
+  let B, Mc;
+  if (S.comp === 'hicks') { B = T.hicks(q1, q2, u0, P); Mc = q1 * B[0] + q2 * B[1]; }
+  else { Mc = q1 * A[0] + q2 * A[1]; B = T.marshall(q1, q2, Mc, P); }
+  const uB = T.u(B, P);
+  return { p1, p2, q1, q2, A, B, C, M, Mc, u0, u1, uB, cheque: Mc - M };
+}
+
+// ---------- drawing ----------
+function niceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), n = x / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }
+function scaleFor(R) {
+  const xs = [R.M / R.p1, R.M / R.q1, R.Mc / R.q1, R.A[0], R.B[0], R.C[0]];
+  const ys = [R.M / R.p2, R.M / R.q2, R.Mc / R.q2, R.A[1], R.B[1], R.C[1]];
+  const mx = Math.max(...xs.filter(isFinite)) * 1.08, my = Math.max(...ys.filter(isFinite)) * 1.08;
+  const sx = niceStep(mx / 6), sy = niceStep(my / 6);
+  return { xmax: Math.ceil(mx / sx) * sx, ymax: Math.ceil(my / sy) * sy, sx, sy };
+}
+function icSegments(u, Sc) {
+  const T = UT[S.util], P = S.params;
+  if (T.icPoly) return T.icPoly(u, P, Sc.xmax, Sc.ymax);
+  const segs = []; let cur = [];
+  const N = 400;
+  for (let i = 1; i <= N; i++) {
+    const t = i / N, x = Sc.xmax * 1.05 * t * t;
+    let y = T.ic(u, x, P);
+    if (isFinite(y) && y >= 0) { cur.push([x, Math.min(y, Sc.ymax * 5)]); }
+    else if (cur.length) { segs.push(cur); cur = []; }
+  }
+  if (cur.length) segs.push(cur);
+  return segs;
+}
+
+function draw(R, Sc, step) {
+  const W = 660, H = 560, L = 100, Rm = 24, Tm = 16, Bm = 96;
+  const pw = W - L - Rm, ph = H - Tm - Bm;
+  const X = v => L + v / Sc.xmax * pw, Y = v => Tm + ph - v / Sc.ymax * ph;
+  const col = { A: 'var(--A)', B: 'var(--B)', C: 'var(--C)', tot: 'var(--tot)' };
+  let s = '<defs>';
+  s += `<clipPath id="clip"><rect x="${L}" y="${Tm}" width="${pw}" height="${ph}"/></clipPath>`;
+  for (const k of ['B', 'C', 'tot'])
+    s += `<marker id="ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:${col[k]}"/></marker>`;
+  s += '</defs>';
+
+  // grid and ticks
+  for (let v = 0; v <= Sc.xmax + 1e-9; v += Sc.sx) {
+    s += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tm}" y2="${Tm + ph}" style="stroke:var(--grid)"/>`;
+    s += `<text x="${X(v)}" y="${Tm + ph + 16}" font-size="11" text-anchor="middle">${f(v)}</text>`;
+  }
+  for (let v = 0; v <= Sc.ymax + 1e-9; v += Sc.sy) {
+    s += `<line x1="${L}" x2="${L + pw}" y1="${Y(v)}" y2="${Y(v)}" style="stroke:var(--grid)"/>`;
+    s += `<text x="${L - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end">${f(v)}</text>`;
+  }
+  s += `<line x1="${L}" x2="${L + pw}" y1="${Tm + ph}" y2="${Tm + ph}" style="stroke:var(--fg)"/>`;
+  s += `<line x1="${L}" x2="${L}" y1="${Tm}" y2="${Tm + ph}" style="stroke:var(--fg)"/>`;
+  s += `<text x="${L + pw}" y="${Tm + ph + 30}" font-size="14" text-anchor="end" font-style="italic">x₁</text>`;
+  s += `<text x="${L - 26}" y="${Tm + 8}" font-size="14" font-style="italic">x₂</text>`;
+
+  // clipped content
+  s += '<g clip-path="url(#clip)">';
+  const path = (segs, color, extra) => segs.map(seg =>
+    `<polyline points="${seg.map(p => X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1)).join(' ')}" style="fill:none;stroke:${color}" ${extra || ''}/>`).join('');
+  const budget = (M, a, bb, color, extra) =>
+    `<line x1="${X(0)}" y1="${Y(M / bb)}" x2="${X(M / a)}" y2="${Y(0)}" style="stroke:${color}" ${extra}/>`;
+
+  s += path(icSegments(R.u0, Sc), col.A, 'stroke-width="1.6" opacity="0.55"');
+  s += budget(R.M, R.p1, R.p2, col.A, 'stroke-width="2.4"');
+  if (step >= 2) {
+    if (S.comp === 'slutsky' && Math.abs(R.uB - R.u0) > 1e-6)
+      s += path(icSegments(R.uB, Sc), col.B, 'stroke-width="1.6" opacity="0.6" stroke-dasharray="2 4"');
+    s += budget(R.Mc, R.q1, R.q2, col.B, 'stroke-width="2.4" stroke-dasharray="8 5"');
+  }
+  if (step >= 3) {
+    s += path(icSegments(R.u1, Sc), col.C, 'stroke-width="1.6" opacity="0.55"');
+    s += budget(R.M, R.q1, R.q2, col.C, 'stroke-width="2.4"');
+  }
+  s += '</g>';
+
+  // points
+  const pts = [['A', R.A, 1], ['B', R.B, 2], ['C', R.C, 3]].filter(p => step >= p[2]);
+  for (const [k, x] of pts) {
+    s += `<line x1="${X(x[0])}" y1="${Y(x[1])}" x2="${X(x[0])}" y2="${Tm + ph}" style="stroke:${col[k]}" stroke-dasharray="3 3" opacity="0.6"/>`;
+    s += `<line x1="${X(x[0])}" y1="${Y(x[1])}" x2="${L}" y2="${Y(x[1])}" style="stroke:${col[k]}" stroke-dasharray="3 3" opacity="0.6"/>`;
+  }
+  const offs = { A: [9, -9], B: [9, 16], C: [-18, -9] };
+  for (const [k, x] of pts) {
+    s += `<circle cx="${X(x[0])}" cy="${Y(x[1])}" r="5.5" style="fill:${col[k]};stroke:var(--bg)" stroke-width="2"/>`;
+    s += `<text x="${X(x[0]) + offs[k][0]}" y="${Y(x[1]) + offs[k][1]}" font-size="15" font-weight="700" style="fill:${col[k]}">${k}</text>`;
+  }
+
+  // arrows along the axes
+  const harrow = (x0, x1, y, k, lab) => {
+    const a = X(x0), c = X(x1);
+    let t = `<text x="${L - 8}" y="${y + 4}" font-size="11.5" text-anchor="end" style="fill:${col[k]}">${lab}</text>`;
+    if (Math.abs(c - a) < 3) return t + `<text x="${a + 6}" y="${y + 4}" font-size="11" style="fill:${col[k]}">≈ 0</text>`;
+    t += `<line x1="${a}" y1="${y}" x2="${c}" y2="${y}" style="stroke:${col[k]}" stroke-width="2.5" marker-end="url(#ar-${k})"/>`;
+    t += `<text x="${(a + c) / 2}" y="${y - 4}" font-size="11" text-anchor="middle" style="fill:${col[k]}">${fs(x1 - x0)}</text>`;
+    return t;
+  };
+  const varrow = (y0, y1, x, k) => {
+    const a = Y(y0), c = Y(y1);
+    if (Math.abs(c - a) < 3) return '';
+    return `<line x1="${x}" y1="${a}" x2="${x}" y2="${c}" style="stroke:${col[k]}" stroke-width="2.5" marker-end="url(#ar-${k})"/>` +
+      `<text transform="translate(${x - 5},${(a + c) / 2}) rotate(-90)" font-size="11" text-anchor="middle" style="fill:${col[k]}">${fs(y1 - y0)}</text>`;
+  };
+  const yb = Tm + ph;
+  if (step >= 2) { s += harrow(R.A[0], R.B[0], yb + 46, 'B', 'Substitution'); s += varrow(R.A[1], R.B[1], L - 44, 'B'); }
+  if (step >= 3) {
+    s += harrow(R.B[0], R.C[0], yb + 66, 'C', 'Income');
+    s += harrow(R.A[0], R.C[0], yb + 86, 'tot', 'Total');
+    s += varrow(R.B[1], R.C[1], L - 64, 'C');
+    s += varrow(R.A[1], R.C[1], L - 84, 'tot');
+  }
+  $('plot').innerHTML = s;
+}
+
+// ---------- text ----------
+function captionText(R, step) {
+  const ch = R.cheque, H = S.comp === 'hicks';
+  const what = H ? `just enough to stay on the old indifference curve u₀ = ${f(R.u0)}: m(p′, u₀) − M`
+                 : `just enough to still afford the old bundle A: p′·x<sub>A</sub> − M`;
+  const pay = ch >= 0 ? `receives a cheque of <b>${f(ch)}</b>` : `pays a lump-sum tax of <b>${f(-ch)}</b>`;
+  if (step === 1) return `<b>1 · Before.</b> At prices p = (${f(R.p1)}, ${f(R.p2)}) and income M = ${f(R.M)}, the consumer chooses <b class="cA">A</b> = (${f(R.A[0])}, ${f(R.A[1])}) with utility u₀ = ${f(R.u0)}.`;
+  if (step === 2) return `<b>2 · Prices change to p′ = (${f(R.q1)}, ${f(R.q2)}), and at the same moment the consumer ${pay}</b>, ${what}. Only relative prices have changed, so the move from A to <b class="cB">B</b> = (${f(R.B[0])}, ${f(R.B[1])}) is the <b class="cB">substitution effect</b>.`;
+  const back = ch >= 0 ? 'The cheque is taken back' : 'The tax is refunded';
+  return `<b>3 · ${back}.</b> The dashed budget line shifts in parallel to the new budget line at the same prices p′, and the consumer moves from B to <b class="cC">C</b> = (${f(R.C[0])}, ${f(R.C[1])}). This is the <b class="cC">income effect</b>. A → C is the total (Marshallian) effect.`;
+}
+
+function interpretation(R) {
+  const se1 = R.B[0] - R.A[0], ie1 = R.C[0] - R.B[0], tot1 = R.C[0] - R.A[0];
+  const rel0 = R.p1 / R.p2, rel1 = R.q1 / R.q2, ch = R.cheque, eps = 1e-6;
+  let out = [];
+  if (Math.abs(rel1 - rel0) < 1e-12) out.push('Relative prices have not changed, so there is no substitution effect: the whole change is an income effect.');
+  else if (Math.abs(se1) < eps) out.push('Good 1 is now relatively ' + (rel1 > rel0 ? 'more' : 'less') + ' expensive, but the substitution effect is zero: with these preferences the consumer does not substitute between the goods.');
+  else out.push(`Good 1 is now relatively ${rel1 > rel0 ? 'more' : 'less'} expensive, so with compensation the consumer buys ${f(Math.abs(se1))} ${se1 < 0 ? 'less' : 'more'} of it. The compensated (substitution) effect always moves opposite to the relative price.`);
+  if (Math.abs(ch) < eps) out.push('No compensation is needed, so there is no income effect.');
+  else {
+    const poorer = ch > 0;
+    if (Math.abs(ie1) < eps) out.push(`Taking ${poorer ? 'away' : 'back'} the compensation of ${f(Math.abs(ch))} does not change x₁, so the income effect on good 1 is zero.`);
+    else {
+      const normal = (poorer && ie1 < 0) || (!poorer && ie1 > 0);
+      out.push(`The price change made the consumer ${poorer ? 'poorer' : 'richer'} by the equivalent of ${f(Math.abs(ch))}. Undoing the compensation changes x₁ by ${fs(ie1)}, so here good 1 is <b>${normal ? 'normal' : 'inferior'}</b>.`);
+    }
+  }
+  if (Math.abs(R.q2 - R.p2) < 1e-12 && Math.abs(R.q1 - R.p1) > 1e-12 && tot1 * (R.q1 - R.p1) > eps)
+    out.push('<b>Giffen good:</b> demand for good 1 moves in the same direction as its price, because the income effect outweighs the substitution effect.');
+  return out.join(' ');
+}
+
+function slutskyBox(R) {
+  const T = UT[S.util], P = S.params, p1 = R.p1, p2 = R.p2, M = R.M, x1 = R.A[0];
+  const e = 1e-5 * p1, eM = 1e-5 * M;
+  const dxdp = (T.marshall(p1 + e, p2, M, P)[0] - T.marshall(p1 - e, p2, M, P)[0]) / (2 * e);
+  const dhdp = (T.hicks(p1 + e, p2, R.u0, P)[0] - T.hicks(p1 - e, p2, R.u0, P)[0]) / (2 * e);
+  const dxdM = (T.marshall(p1, p2, M + eM, P)[0] - T.marshall(p1, p2, M - eM, P)[0]) / (2 * eM);
+  const s1 = p1 * x1 / M, eta = x1 > 0 ? dxdM * M / x1 : NaN;
+  return `<div class="box"><h3>The Slutsky equation at A (an infinitesimal change in p₁)</h3>
+  <p class="hint">The decomposition above is for a discrete price change. For a very small change in p₁ the same split is the Slutsky equation. The derivatives below are computed numerically at A.</p>
+  <div class="calc">∂x₁/∂p₁ &nbsp;=&nbsp; ∂h₁/∂p₁ &nbsp;−&nbsp; x₁·∂x₁/∂M</div>
+  <div class="calc">${fd(dxdp)} &nbsp;=&nbsp; <span class="cB">${fd(dhdp)}</span> &nbsp;−&nbsp; <span class="cC">${f(x1)}·${fd(dxdM)}</span> &nbsp;=&nbsp; <span class="cB">${fd(dhdp)}</span> <span class="cC">${dxdM * x1 >= 0 ? '−' : '+'} ${fd(Math.abs(x1 * dxdM))}</span></div>
+  <div class="calc">total &nbsp;=&nbsp; <span class="cB">substitution</span> &nbsp;+&nbsp; <span class="cC">income</span></div>
+  <p class="hint">The income term is x₁·∂x₁/∂M: a price rise of dp₁ costs the consumer about x₁·dp₁ in purchasing power. In elasticity form, ε₁₁ = ε<sup>h</sup>₁₁ − s₁η₁, where the budget share is s₁ = p₁x₁/M = ${f(s1)}, the income elasticity is η₁ = ${fd(eta)} and the income term is s₁η₁ = ${fd(s1 * eta)}. A good with a small budget share has a small income effect.</p></div>`;
+}
+
+function renderCalc(R) {
+  const T = UT[S.util], P = S.params, H = S.comp === 'hicks';
+  const lines = arr => arr.map(l => `<div class="calc">${l}</div>`).join('');
+  let h = '';
+  h += `<div class="box"><h3>Formulas for ${T.name}: ${T.form}</h3>${lines(T.theory(P))}</div>`;
+
+  h += `<h3><span class="dot" style="background:var(--A)"></span> Step 1 · Original bundle A at p = (${f(R.p1)}, ${f(R.p2)})</h3>`;
+  if (S.mode === 'M') {
+    h += lines(T.mCalc(R.p1, R.p2, R.M, P, R.A));
+    h += lines([T.uCalc(R.A, P, R.u0)]);
+  } else {
+    h += lines(T.hCalc(R.p1, R.p2, S.u, P, R.A));
+    h += lines([`M = m(p, ū) = p₁h₁ + p₂h₂ = ${f(R.p1)}·${f(R.A[0])} + ${f(R.p2)}·${f(R.A[1])} = ${b(f(R.M))} &nbsp; (the consumer's income from now on)`]);
+  }
+
+  h += `<h3><span class="dot" style="background:var(--C)"></span> Step 2 · New bundle C = x(p′, M) at p′ = (${f(R.q1)}, ${f(R.q2)}), same income M = ${f(R.M)}</h3>`;
+  h += lines(T.mCalc(R.q1, R.q2, R.M, P, R.C));
+  h += lines([T.uCalc(R.C, P, R.u1)]);
+
+  h += `<h3><span class="dot" style="background:var(--B)"></span> Step 3 · Compensated bundle B (${H ? 'Hicks' : 'Slutsky'})</h3>`;
+  if (H) {
+    h += lines(T.hCalc(R.q1, R.q2, R.u0, P, R.B));
+    h += lines([`m(p′, u₀) = p₁′h₁ + p₂′h₂ = ${f(R.q1)}·${f(R.B[0])} + ${f(R.q2)}·${f(R.B[1])} = ${b(f(R.Mc))}`,
+                `Compensation (the cheque) = m(p′, u₀) − M = ${f(R.Mc)} − ${f(R.M)} = ${b(f(R.cheque))} &nbsp; (this is the compensating variation)`]);
+  } else {
+    h += lines([`M′ = p′·x<sub>A</sub> = ${f(R.q1)}·${f(R.A[0])} + ${f(R.q2)}·${f(R.A[1])} = ${b(f(R.Mc))}`,
+                `Compensation (the cheque) = M′ − M = ${f(R.Mc)} − ${f(R.M)} = ${b(f(R.cheque))}`]);
+    h += lines(T.mCalc(R.q1, R.q2, R.Mc, P, R.B));
+    h += lines([T.uCalc(R.B, P, R.uB) + (R.uB > R.u0 + 1e-6 ? ' &nbsp; (> u₀: Slutsky compensation slightly over-compensates)' : '')]);
+  }
+
+  h += `<h3>Step 4 · Decomposition</h3>
+  <table><tr><th></th><th class="cB">Substitution (B − A)</th><th class="cC">Income (C − B)</th><th>Total (C − A)</th></tr>
+  <tr><td>Good 1</td><td>${f(R.B[0])} − ${f(R.A[0])} = <b>${fs(R.B[0] - R.A[0])}</b></td><td>${f(R.C[0])} − ${f(R.B[0])} = <b>${fs(R.C[0] - R.B[0])}</b></td><td><b>${fs(R.C[0] - R.A[0])}</b></td></tr>
+  <tr><td>Good 2</td><td>${f(R.B[1])} − ${f(R.A[1])} = <b>${fs(R.B[1] - R.A[1])}</b></td><td>${f(R.C[1])} − ${f(R.B[1])} = <b>${fs(R.C[1] - R.B[1])}</b></td><td><b>${fs(R.C[1] - R.A[1])}</b></td></tr></table>
+  <p>${interpretation(R)}</p>`;
+
+  h += `<table><tr><th>Bundle</th><th>x₁</th><th>x₂</th><th>Prices</th><th>Expenditure</th><th>Utility</th></tr>
+  <tr><td class="cA"><b>A</b> original</td><td>${f(R.A[0])}</td><td>${f(R.A[1])}</td><td>p</td><td>${f(R.M)}</td><td>${f(R.u0)}</td></tr>
+  <tr><td class="cB"><b>B</b> compensated</td><td>${f(R.B[0])}</td><td>${f(R.B[1])}</td><td>p′</td><td>${f(R.Mc)}</td><td>${f(R.uB)}</td></tr>
+  <tr><td class="cC"><b>C</b> new</td><td>${f(R.C[0])}</td><td>${f(R.C[1])}</td><td>p′</td><td>${f(R.M)}</td><td>${f(R.u1)}</td></tr></table>`;
+
+  h += slutskyBox(R);
+  $('calc').innerHTML = h;
+}
+
+function renderCards(R) {
+  const card = (k, t, v1, v2) => `<div class="card" style="border-left-color:var(--${k})"><div class="t">${t}</div><div class="v">x₁: ${fs(v1)} &nbsp; x₂: ${fs(v2)}</div></div>`;
+  $('cards').innerHTML =
+    card('B', 'Substitution effect (A → B)', R.B[0] - R.A[0], R.B[1] - R.A[1]) +
+    card('C', 'Income effect (B → C)', R.C[0] - R.B[0], R.C[1] - R.B[1]) +
+    card('tot', 'Total effect (A → C)', R.C[0] - R.A[0], R.C[1] - R.A[1]);
+}
+
+function renderLegend() {
+  const H = S.comp === 'hicks';
+  $('legend').innerHTML =
+    `<span><i class="sw" style="border-color:var(--A)"></i>Original budget (p, M) and u₀</span>` +
+    `<span><i class="sw dash" style="border-color:var(--B)"></i>Compensated budget (p′, ${H ? 'm(p′, u₀)' : 'p′·x<sub>A</sub>'})</span>` +
+    `<span><i class="sw" style="border-color:var(--C)"></i>New budget (p′, M) and u₁</span>` +
+    `<span><i class="sw" style="border-color:var(--tot)"></i>Total effect</span>`;
+}
+
+// ---------- main update ----------
+function update(q1, q2, scaleR) {
+  const R = compute(q1 !== undefined ? q1 : S.q1, q2 !== undefined ? q2 : S.q2);
+  const ok = [...R.A, ...R.B, ...R.C, R.M].every(isFinite);
+  if (!ok) { $('caption').innerHTML = '<span class="warn">These values give no well-defined solution. Try other parameters.</span>'; return; }
+  const Sc = scaleFor(scaleR || R);
+  const step = animating ? 3 : S.step;
+  document.querySelectorAll('.steps button').forEach(btn => btn.classList.toggle('on', +btn.dataset.step === S.step));
+  draw(R, Sc, step);
+  $('caption').innerHTML = (Math.abs(R.q1 - R.p1) < 1e-12 && Math.abs(R.q2 - R.p2) < 1e-12)
+    ? 'The new prices equal the old prices. Change p₁′ or p₂′ to see a decomposition.' : captionText(R, step);
+  renderLegend();
+  renderCards(R);
+  if (!animating) renderCalc(R);
+}
+
+// ---------- events ----------
+Object.keys(UT).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = UT[k].name; $('util').appendChild(o); });
+$('util').addEventListener('change', e => {
+  const M = compute(S.q1, S.q2).M;           // keep the same income across utility functions
+  S.util = e.target.value; S.params = {};
+  UT[S.util].params.forEach(p => S.params[p.k] = p.def);
+  const T = UT[S.util];
+  S.u = +T.u(T.marshall(positive(S.p1), positive(S.p2), M, S.params), S.params).toFixed(2);
+  if (S.mode === 'M') S.M = Math.round(M);
+  buildParams(); buildStart(); update();
+});
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', e => {
+  const R = compute(S.q1, S.q2);
+  S.mode = e.target.value;
+  if (S.mode === 'u') S.u = +R.u0.toFixed(2); else S.M = Math.round(R.M);
+  buildStart(); update();
+}));
+document.querySelectorAll('input[name=comp]').forEach(r => r.addEventListener('change', e => { S.comp = e.target.value; update(); }));
+document.querySelectorAll('.steps button').forEach(btn => btn.addEventListener('click', () => { S.step = +btn.dataset.step; update(); }));
+$('resetBtn').addEventListener('click', () => { if (!animating) { resetState(); buildAll(); } });
+$('animBtn').addEventListener('click', () => {
+  if (animating) return;
+  animating = true;
+  const target = compute(S.q1, S.q2), t0 = performance.now(), dur = 2200;
+  const frame = now => {
+    const t = Math.min(1, (now - t0) / dur), e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    update(S.p1 + e * (S.q1 - S.p1), S.p2 + e * (S.q2 - S.p2), target);
+    if (t < 1) requestAnimationFrame(frame);
+    else { animating = false; S.step = 3; update(); }
+  };
+  requestAnimationFrame(frame);
+});
+
+resetState();
+buildAll();
+</script>
+</body>
+</html>
