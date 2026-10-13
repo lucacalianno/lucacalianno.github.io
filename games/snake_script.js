@@ -175,7 +175,7 @@ function checkCollision() {
 function resetGame() {
   updateHighScore();
   // Redirect to another webpage (replace 'your-url-here' with the desired URL)
-  window.location.href = 'quiz_game.html';
+  window.location.href = 'quiz.html';
 }
 
 

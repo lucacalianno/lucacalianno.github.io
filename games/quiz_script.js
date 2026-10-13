@@ -222,7 +222,7 @@ function getAnswerForQuestion(question) {
 
 function displayResult() {
   if (score === 1) {
-    window.location.href = 'snake_game.html'; // Redirect to a new page for correct answers
+    window.location.href = 'snake.html'; // Redirect to a new page for correct answers
   } else {
     retryQuiz();
   }
