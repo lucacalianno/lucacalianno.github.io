@@ -7,12 +7,12 @@
 <style>
 :root {
   --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --panel: #f6f8fa; --grid: #eef1f4;
-  --A: #0969da; --B: #1a7f37; --C: #cf222e; --tot: #6e7781;
+  --A: #0969da; --B: #1a7f37; --C: #cf222e; --tot: #6e7781; --Cp: #bc4c00;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --panel: #151b23; --grid: #1c232c;
-    --A: #4493f8; --B: #3fb950; --C: #f85149; --tot: #9198a1;
+    --A: #4493f8; --B: #3fb950; --C: #f85149; --tot: #9198a1; --Cp: #db6d28;
   }
 }
 * { box-sizing: border-box; }
@@ -59,7 +59,7 @@ th { font-weight: 600; color: var(--muted); }
 .box { border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px 10px; margin: 10px 0; }
 .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; }
 .warn { color: var(--C); font-weight: 600; }
-.cA { color: var(--A); } .cB { color: var(--B); } .cC { color: var(--C); }
+.cA { color: var(--A); } .cB { color: var(--B); } .cC { color: var(--C); } .cCp { color: var(--Cp); }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .presets button { font-size: 0.85rem; padding: 3px 9px; }
 .flags div { font-size: 0.9rem; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--B); border-radius: 6px; padding: 4px 10px; margin-bottom: 6px; }
@@ -83,6 +83,7 @@ th { font-weight: 600; color: var(--muted); }
     <div class="hint" id="paramNote"></div>
   </fieldset>
 
+  <div id="mainCtl">
   <fieldset>
     <legend>Starting point (prices p)</legend>
     <label class="radio"><input type="radio" name="mode" value="M" checked> Given income <i>M</i> (start from D(p, M))</label>
@@ -105,10 +106,25 @@ th { font-weight: 600; color: var(--muted); }
     <label class="radio"><input type="radio" name="comp" value="slutsky"> Slutsky: keep the old bundle A affordable</label>
     <p class="hint">The compensated budget line has the new prices p′ and just enough income to reach u₀ (Hicks) or to buy A (Slutsky).</p>
   </fieldset>
+  </div>
+
+  <div id="lsCtlWrap" hidden>
+  <fieldset>
+    <legend>Prices and endowment</legend>
+    <div id="lsCtl"></div>
+  </fieldset>
+  <fieldset>
+    <legend>Wage change</legend>
+    <div id="lsNew"></div>
+    <div style="margin-top:8px"><button id="lsReset">Reset to the example</button></div>
+    <p class="hint" id="lsHint"></p>
+  </fieldset>
+  </div>
 </section>
 
 <section>
-  <div class="steps">
+  <div id="mainView">
+  <div class="steps" id="steps">
     <button data-step="1">1 · Before</button>
     <button data-step="2">2 · Prices change + cheque</button>
     <button data-step="3">3 · Cheque taken back</button>
@@ -118,11 +134,26 @@ th { font-weight: 600; color: var(--muted); }
   <svg id="plot" viewBox="0 0 660 560" role="img" aria-label="Budget lines, indifference curves and bundles A, B and C"></svg>
   <div class="legend" id="legend"></div>
   <div class="cards" id="cards"></div>
+  </div>
+
+  <div id="lsView" hidden>
+  <div class="steps" id="lsSteps">
+    <button data-step="1">1 · Before</button>
+    <button data-step="2">2 · Substitution</button>
+    <button data-step="3">3 · Ordinary income effect</button>
+    <button data-step="4">4 · Endowment effect</button>
+  </div>
+  <div class="caption" id="lsCaption"></div>
+  <div class="flags" id="lsFlags"></div>
+  <svg id="lsPlot" viewBox="0 0 660 580" role="img" aria-label="Budget lines through the endowment point E, indifference curves and bundles A, B, C′ and C"></svg>
+  <div class="legend" id="lsLegend"></div>
+  </div>
 </section>
 </div>
 
 <h2>Calculations</h2>
 <div id="calc"></div>
+<div id="lsCalc" hidden></div>
 </main>
 
 <script>
@@ -421,19 +452,20 @@ function resetState() {
 }
 
 // ---------- controls ----------
-function slider(container, key, label, min, max, step, obj, set) {
+function slider(container, key, label, min, max, step, obj, set, after) {
   obj = obj || S;
+  after = after || (() => update());
   set = set || (v => { obj[key] = v; });
   const row = document.createElement('div');
   row.className = 'row';
   row.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}"><input type="number" step="any">`;
   const [r, n] = row.querySelectorAll('input');
   r.value = obj[key]; n.value = obj[key];
-  r.addEventListener('input', () => { set(+r.value); n.value = r.value; update(); });
+  r.addEventListener('input', () => { set(+r.value); n.value = r.value; after(); });
   n.addEventListener('change', () => {
     let v = parseFloat(n.value);
     if (!isFinite(v)) { n.value = obj[key]; return; }
-    set(v); r.value = v; update();
+    set(v); r.value = v; after();
   });
   container.appendChild(row);
 }
@@ -480,7 +512,24 @@ function buildNew() {
   slider(c, 'q1', 'p₁′', 0.1, 10, 0.1);
   slider(c, 'q2', 'p₂′', 0.1, 10, 0.1);
 }
+// the labour-supply example has its own controls, diagram and calculations, swapped in for the ordinary ones
+let labourOn = false;
+function setLabour(kind) {           // kind: false, 'cd' or 'wk'
+  const on = !!kind;
+  labourOn = on;
+  $('mainCtl').hidden = $('mainView').hidden = $('calc').hidden = on;
+  $('lsCtlWrap').hidden = $('lsView').hidden = $('lsCalc').hidden = !on;
+  if (on) {
+    lsKind = kind;
+    $('utilForm').innerHTML = LM[kind].form;
+    $('params').innerHTML = '';
+    $('paramNote').innerHTML = LM[kind].note;
+    lsBuild();
+  } else buildParams();
+}
+
 function buildAll() {
+  if (labourOn) setLabour(false);
   $('util').value = S.util;
   document.querySelector(`input[name=mode][value=${S.mode}]`).checked = true;
   document.querySelector(`input[name=comp][value=${S.comp}]`).checked = true;
@@ -773,7 +822,7 @@ function update(q1, q2, scaleR) {
   $('flags').innerHTML = (T.flags ? T.flags(R, S.params) : []).map(g => `<div class="${g.w ? 'w' : ''}">${g.h}</div>`).join('');
   const Sc = scaleFor(scaleR || R);
   const step = animating ? 3 : S.step;
-  document.querySelectorAll('.steps button').forEach(btn => btn.classList.toggle('on', +btn.dataset.step === S.step));
+  document.querySelectorAll('#steps button').forEach(btn => btn.classList.toggle('on', +btn.dataset.step === S.step));
   draw(R, Sc, step);
   $('caption').innerHTML = (Math.abs(R.q1 - R.p1) < 1e-12 && Math.abs(R.q2 - R.p2) < 1e-12)
     ? 'The new prices equal the old prices. Change p₁′ or p₂′ to see a decomposition.' : captionText(R, step);
@@ -784,7 +833,11 @@ function update(q1, q2, scaleR) {
 
 // ---------- events ----------
 Object.keys(UT).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = UT[k].name; $('util').appendChild(o); });
+[['labour-cd', 'Cobb–Douglas with labour (leisure)'], ['labour-wk', 'Labour: U = 2√x − l (2025 exam)']].forEach(([v, t]) => {
+  const o = document.createElement('option'); o.value = v; o.textContent = t; $('util').appendChild(o); });
 $('util').addEventListener('change', e => {
+  if (e.target.value.startsWith('labour-')) { setLabour(e.target.value.slice(7)); return; }
+  setLabour(false);                           // S.util still holds the last ordinary utility function
   const M = compute(S.q1, S.q2).M;           // keep the same income across utility functions
   S.util = e.target.value; S.params = {};
   UT[S.util].params.forEach(p => S.params[p.k] = p.def);
@@ -800,7 +853,7 @@ document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('c
   buildStart(); update();
 }));
 document.querySelectorAll('input[name=comp]').forEach(r => r.addEventListener('change', e => { S.comp = e.target.value; update(); }));
-document.querySelectorAll('.steps button').forEach(btn => btn.addEventListener('click', () => { S.step = +btn.dataset.step; update(); }));
+document.querySelectorAll('#steps button').forEach(btn => btn.addEventListener('click', () => { S.step = +btn.dataset.step; update(); }));
 $('resetBtn').addEventListener('click', () => { if (!animating) { resetState(); buildAll(); } });
 $('animBtn').addEventListener('click', () => {
   if (animating) return;
@@ -817,6 +870,290 @@ $('animBtn').addEventListener('click', () => {
 
 resetState();
 buildAll();
+
+// ---------- labour supply: two models sharing one view ----------
+// 'cd': u(c, z) = √c·√z with leisure z, full income I = M + wT (four steps, endowment effect shown separately)
+// 'wk': U(x, l) = 2√x − l with hours worked l, budget px = wl + M (2025 exam; three steps)
+const LS_DEF = { cd: { p: 1, T: 24, M: 12, w: 1, w2: 2, step: 4 }, wk: { p: 1, M: 2, w: 2, w2: 3, step: 3 } };
+let lsKind = 'cd';
+const LSS = { cd: Object.assign({}, LS_DEF.cd), wk: Object.assign({}, LS_DEF.wk) };
+const lsCol = { A: 'var(--A)', B: 'var(--B)', Cp: 'var(--Cp)', C: 'var(--C)', tot: 'var(--tot)' };
+const lsLines = arr => arr.map(l => `<div class="calc">${l}</div>`).join('');
+
+// axes, grid, arrow markers and helpers shared by both labour diagrams
+function lsFrame(xmax, ymax, xlab, ylab) {
+  const W = 660, H = 580, L = 100, Rm = 24, Tm = 16, Bm = 116, pw = W - L - Rm, ph = H - Tm - Bm;
+  const sx = niceStep(xmax / 6), sy = niceStep(ymax / 6);
+  xmax = Math.ceil(xmax / sx) * sx; ymax = Math.ceil(ymax / sy) * sy;
+  const X = v => L + v / xmax * pw, Y = v => Tm + ph - v / ymax * ph;
+  let s = '<defs>';
+  s += `<clipPath id="ls-clip"><rect x="${L}" y="${Tm}" width="${pw}" height="${ph}"/></clipPath>`;
+  for (const k of ['B', 'Cp', 'C', 'tot'])
+    s += `<marker id="ls-ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:${lsCol[k]}"/></marker>`;
+  s += '</defs>';
+  for (let v = 0; v <= xmax + 1e-9; v += sx) {
+    s += `<line x1="${X(v)}" x2="${X(v)}" y1="${Tm}" y2="${Tm + ph}" style="stroke:var(--grid)"/>`;
+    s += `<text x="${X(v)}" y="${Tm + ph + 16}" font-size="11" text-anchor="middle">${f(v)}</text>`;
+  }
+  for (let v = 0; v <= ymax + 1e-9; v += sy) {
+    s += `<line x1="${L}" x2="${L + pw}" y1="${Y(v)}" y2="${Y(v)}" style="stroke:var(--grid)"/>`;
+    s += `<text x="${L - 6}" y="${Y(v) + 4}" font-size="11" text-anchor="end">${f(v)}</text>`;
+  }
+  s += `<line x1="${L}" x2="${L + pw}" y1="${Tm + ph}" y2="${Tm + ph}" style="stroke:var(--fg)"/>`;
+  s += `<line x1="${L}" x2="${L}" y1="${Tm}" y2="${Tm + ph}" style="stroke:var(--fg)"/>`;
+  s += `<text x="${L + pw}" y="${Tm + ph + 30}" font-size="13" text-anchor="end">${xlab}</text>`;
+  s += `<text x="${L - 6}" y="${Tm + 8}" font-size="13" text-anchor="end">${ylab}</text>`;
+  const F = { X, Y, L, Tm, ph, pw, xmax, ymax, s };
+  // a curve y = g(x), sampled more densely near the vertical axis
+  F.curve = (g, color, extra) => {
+    const pts = []; for (let i = 0; i <= 300; i++) { const x = xmax * 1.05 * (i / 300) * (i / 300), y = g(x); if (isFinite(y) && y >= 0) pts.push([x, Math.min(y, ymax * 5)]); }
+    return `<polyline points="${pts.map(q => X(q[0]).toFixed(1) + ',' + Y(q[1]).toFixed(1)).join(' ')}" style="fill:none;stroke:${color}" ${extra}/>`;
+  };
+  F.points = (pts, offs) => {
+    let t = '';
+    for (const [, x, k] of pts) t += `<line x1="${X(x[0])}" y1="${Y(x[1])}" x2="${X(x[0])}" y2="${Tm + ph}" style="stroke:${lsCol[k]}" stroke-dasharray="3 3" opacity="0.6"/>`;
+    for (const [lab, x, k] of pts) {
+      t += `<circle cx="${X(x[0])}" cy="${Y(x[1])}" r="5.5" style="fill:${lsCol[k]};stroke:var(--bg)" stroke-width="2"/>`;
+      t += `<text x="${X(x[0]) + offs[k][0]}" y="${Y(x[1]) + offs[k][1]}" font-size="15" font-weight="700" style="fill:${lsCol[k]}">${lab}</text>`;
+    }
+    return t;
+  };
+  F.endow = (x, y, dx) => `<circle cx="${X(x)}" cy="${Y(y)}" r="5.5" style="fill:var(--bg);stroke:var(--fg)" stroke-width="2.2"/>` +
+    `<text x="${X(x) + dx}" y="${Y(y) + 5}" font-size="15" font-weight="700">E</text>`;
+  F.harrow = (x0, x1, row, k, lab) => {
+    const a = X(x0), c = X(x1), y = Tm + ph + 44 + 18 * row;
+    let t = `<text x="${L - 8}" y="${y + 4}" font-size="11.5" text-anchor="end" style="fill:${lsCol[k]}">${lab}</text>`;
+    if (Math.abs(c - a) < 3) return t + `<text x="${a + 6}" y="${y + 4}" font-size="11" style="fill:${lsCol[k]}">≈ 0</text>`;
+    t += `<line x1="${a}" y1="${y}" x2="${c}" y2="${y}" style="stroke:${lsCol[k]}" stroke-width="2.5" marker-end="url(#ls-ar-${k})"/>`;
+    t += `<text x="${(a + c) / 2}" y="${y - 4}" font-size="11" text-anchor="middle" style="fill:${lsCol[k]}">${fs(x1 - x0)}</text>`;
+    return t;
+  };
+  return F;
+}
+
+// ===== model 'cd': u(c, z) = √c·√z, bundles are (z, c) with leisure on the horizontal axis =====
+const cdU = x => Math.sqrt(x[0]) * Math.sqrt(x[1]);
+const cdDemand = (p, w, T, I) => { const z = Math.min(T, I / (2 * w)); return [z, (I - w * z) / p]; };
+const cdHicks = (p, w, T, u) => { const z = u * Math.sqrt(p / w); return z < T ? [z, u * Math.sqrt(w / p)] : [T, u * u / T]; };
+
+const LM = {};
+LM.cd = {
+  name: 'Cobb–Douglas with labour (leisure)',
+  form: 'u(c, z) = √c · √z<br>max u(c, z) s.t. pc + wz = M + wT',
+  note: 'c = consumption (price p), z = leisure (price w), l = T − z = hours worked. Leisure is good 2 with price w, and income is <b>full income</b> I = M + wT.',
+  steps: ['1 · Before', '2 · Substitution', '3 · Ordinary income effect', '4 · Endowment effect'],
+  hint: 'Set M = 0: the endowment effect exactly cancels the other two, z = T/2 whatever the wage, and labour supply is vertical.',
+  sliders: [['ctl', 'p', 'Price of consumption p', 0.1, 10, 0.1], ['ctl', 'T', 'Time endowment T (hours)', 1, 48, 1], ['ctl', 'M', 'Non-labour income M', 0, 200, 1],
+            ['new', 'w', 'Wage w', 0.1, 10, 0.1], ['new', 'w2', 'New wage w′', 0.1, 10, 0.1]],
+  compute(Q) {
+    const p = positive(Q.p), T = positive(Q.T), M = Math.max(0, Q.M), w = positive(Q.w), w2 = positive(Q.w2);
+    const IA = M + w * T, A = cdDemand(p, w, T, IA), u0 = cdU(A);
+    const B = cdHicks(p, w2, T, u0), IB = p * B[1] + w2 * B[0];
+    const Cp = cdDemand(p, w2, T, IA);                           // new wage, old full income: as for an ordinary good
+    const IC = M + w2 * T, C = cdDemand(p, w2, T, IC);           // new wage, new full income: the endowment is worth more
+    return { p, T, M, w, w2, IA, IB, IC, A, B, Cp, C, u0, uCp: cdU(Cp), u1: cdU(C) };
+  },
+  draw(R, step) {
+    const F = lsFrame(R.T * 1.1, Math.max(R.IA, R.IB, R.IC) / R.p * 1.08, '<tspan font-style="italic">z</tspan> (leisure)', '<tspan font-style="italic">c</tspan>');
+    const { X, Y, Tm, ph } = F;
+    let s = F.s;
+    // the time endowment: z cannot exceed T
+    s += `<line x1="${X(R.T)}" x2="${X(R.T)}" y1="${Tm}" y2="${Tm + ph}" style="stroke:var(--fg)" stroke-dasharray="2 4" opacity="0.6"/>`;
+    s += `<text x="${X(R.T) + 5}" y="${Tm + 14}" font-size="13" font-style="italic">T</text>`;
+    s += '<g clip-path="url(#ls-clip)">';
+    const ic = (u, k, op) => F.curve(z => u * u / z, lsCol[k], `stroke-width="1.6" opacity="${op}"`);
+    const budget = (I, w, k, extra) => { const z1 = Math.min(R.T, I / w);
+      return `<line x1="${X(0)}" y1="${Y(I / R.p)}" x2="${X(z1)}" y2="${Y((I - w * z1) / R.p)}" style="stroke:${lsCol[k]}" ${extra}/>`; };
+    s += ic(R.u0, 'A', 0.55) + budget(R.IA, R.w, 'A', 'stroke-width="2.4"');
+    if (step >= 2) s += budget(R.IB, R.w2, 'B', 'stroke-width="2.4" stroke-dasharray="8 5"');
+    if (step >= 3) s += ic(R.uCp, 'Cp', 0.5) + budget(R.IA, R.w2, 'Cp', 'stroke-width="2.4" stroke-dasharray="3 4"');
+    if (step >= 4) s += ic(R.u1, 'C', 0.55) + budget(R.IC, R.w2, 'C', 'stroke-width="2.4"');
+    s += '</g>';
+    s += F.endow(R.T, R.M / R.p, 9);            // E = (T, M/p): both actual budget lines pass through it
+    // hours worked, l = T − z, shown as a bracket above the horizontal axis
+    const work = (x, k, dy) => { if (R.T - x[0] < 1e-9) return '';
+      const y = Tm + ph - dy, c = lsCol[k];
+      return `<line x1="${X(x[0])}" x2="${X(R.T)}" y1="${y}" y2="${y}" style="stroke:${c}" stroke-width="2"/>` +
+        `<line x1="${X(x[0])}" x2="${X(x[0])}" y1="${y - 4}" y2="${y + 4}" style="stroke:${c}" stroke-width="2"/>` +
+        `<line x1="${X(R.T)}" x2="${X(R.T)}" y1="${y - 4}" y2="${y + 4}" style="stroke:${c}" stroke-width="2"/>` +
+        `<text x="${(X(x[0]) + X(R.T)) / 2}" y="${y - 5}" font-size="11.5" text-anchor="middle" style="fill:${c}">work ${f(R.T - x[0])}</text>`; };
+    s += work(R.A, 'A', 12);
+    if (step >= 4) s += work(R.C, 'C', 34);
+    s += F.points([['A', R.A, 'A', 1], ['B', R.B, 'B', 2], ['C′', R.Cp, 'Cp', 3], ['C', R.C, 'C', 4]].filter(q => step >= q[3]),
+                  { A: [9, -9], B: [9, 16], Cp: [-24, 16], C: [-18, -9] });
+    if (step >= 2) s += F.harrow(R.A[0], R.B[0], 0, 'B', 'Substitution');
+    if (step >= 3) s += F.harrow(R.B[0], R.Cp[0], 1, 'Cp', 'Ordinary income');
+    if (step >= 4) s += F.harrow(R.Cp[0], R.C[0], 2, 'C', 'Endowment') + F.harrow(R.A[0], R.C[0], 3, 'tot', 'Total');
+    return s;
+  },
+  caption(R, step) {
+    const up = R.w2 > R.w, z = x => f(x[0]);
+    if (step === 1) return `<b>1 · Before.</b> At wage w = ${f(R.w)} full income is I = M + wT = ${f(R.M)} + ${f(R.w)}·${f(R.T)} = ${f(R.IA)}. The consumer chooses <b class="cA">A</b>: leisure z = ${z(R.A)}, so works l = ${f(R.T - R.A[0])} hours. The budget line passes through the endowment point <b>E</b> = (T, M/p) = (${f(R.T)}, ${f(R.M / R.p)}): not working at all.`;
+    if (step === 2) return `<b>2 · Substitution effect.</b> The wage ${up ? 'rises' : 'falls'} to w′ = ${f(R.w2)}, so leisure is ${up ? 'dearer' : 'cheaper'}. With just enough income to stay on u₀ (dashed line, income m(w′, u₀) = ${f(R.IB)}) the consumer moves to <b class="cB">B</b>, z = ${z(R.B)}: ${up ? 'less' : 'more'} leisure.`;
+    if (step === 3) return `<b>3 · Ordinary income effect.</b> Take the compensation away but keep full income at its old value ${f(R.IA)}: the budget line pivots around the c-intercept, exactly as for an ordinary good whose price ${up ? 'rose' : 'fell'}. The consumer is ${up ? 'poorer' : 'richer'} and moves to <b class="cCp">C′</b>, z = ${z(R.Cp)}. For an ordinary good x₂ the story would end here.`;
+    return `<b>4 · Endowment effect.</b> But w is also the price at which the consumer <i>sells</i> their T hours, so full income becomes M + w′T = ${f(R.IC)}. The budget line pivots around <b>E</b> instead, and the consumer moves to <b class="cC">C</b>, z = ${z(R.C)}. Total effect A → C: ${fs(R.C[0] - R.A[0])} hours of leisure, so work goes from ${f(R.T - R.A[0])} to ${f(R.T - R.C[0])} hours.`;
+  },
+  flags(R) {
+    const corner = [['A', R.A], ['B', R.B], ['C′', R.Cp], ['C', R.C]].filter(q => q[1][0] >= R.T - 1e-9).map(q => q[0]);
+    return corner.length ? `<div class="w"><b>Corner at ${corner.join(', ')}</b>: z = T, the consumer does not work (non-labour income M is large relative to the wage).</div>` : '';
+  },
+  legend: () =>
+    `<span><i class="sw" style="border-color:var(--A)"></i>Budget at w, through E</span>` +
+    `<span><i class="sw dash" style="border-color:var(--B)"></i>Compensated (w′, m(w′, u₀))</span>` +
+    `<span><i class="sw dash" style="border-color:var(--Cp)"></i>w′ with old full income (pivot at c-axis)</span>` +
+    `<span><i class="sw" style="border-color:var(--C)"></i>Budget at w′, through E</span>`,
+  calc(R) {
+    const { p, w, w2, T, M, A, B, Cp, C } = R;
+    let h = `<div class="box"><h3>Formulas for u(c, z) = √c · √z</h3>
+      <p class="hint">Solve it like any two-good problem, with leisure as good 2. The only new feature is that the price of leisure w also appears in income, so a wage change has a third effect: the <b>endowment effect</b>.</p>${lsLines([
+      'Full income I = M + wT; &nbsp; budget pc + wz = I',
+      'D<sub>z</sub>(p, w, I) = I/(2w), &nbsp;&nbsp; D<sub>c</sub>(p, w, I) = I/(2p), &nbsp;&nbsp; labour l = T − D<sub>z</sub> = T/2 − M/(2w)',
+      'h<sub>z</sub>(p, w, ū) = ū √p / √w, &nbsp;&nbsp; h<sub>c</sub>(p, w, ū) = ū √w / √p, &nbsp;&nbsp; m(p, w, ū) = 2ū √p √w',
+      'If I/(2w) ≥ T the consumer does not work: z = T, c = M/p (the corner at E).'])}</div>`;
+    h += `<h3>The four bundles (z = leisure, l = T − z = work)</h3>`;
+    h += lsLines([
+      `<span class="cA">A</span>: I = M + wT = ${f(M)} + ${f(w)}·${f(T)} = ${f(R.IA)}, &nbsp; z = I/(2w) = ${b(f(A[0]))}, &nbsp; c = ${f(A[1])}, &nbsp; u₀ = √${f(A[1])} · √${f(A[0])} = ${f(R.u0)}`,
+      `<span class="cB">B</span>: z = h<sub>z</sub>(p, w′, u₀) = ${f(R.u0)}·√${f(p)} / √${f(w2)} = ${b(f(B[0]))}, &nbsp; c = ${f(B[1])}, &nbsp; m(p, w′, u₀) = ${f(R.IB)}`,
+      `<span class="cCp">C′</span>: old full income ${f(R.IA)} at the new wage: z = ${f(R.IA)}/(2·${f(w2)}) = ${b(f(Cp[0]))}, &nbsp; c = ${f(Cp[1])}`,
+      `<span class="cC">C</span>: I′ = M + w′T = ${f(M)} + ${f(w2)}·${f(T)} = ${f(R.IC)}, &nbsp; z = I′/(2w′) = ${b(f(C[0]))}, &nbsp; c = ${f(C[1])}`]);
+    const row = (k, cls, x, prev, term) => `<tr><td class="${cls}"><b>${k}</b></td><td>${f(x[0])}</td><td>${f(T - x[0])}</td><td>${prev ? `<b>${fs(x[0] - prev[0])}</b>` : ''}</td><td>${term}</td></tr>`;
+    h += `<div class="tw"><table><tr><th>Step</th><th>Leisure z</th><th>Work l</th><th>Change in z</th><th>Term in the formula</th></tr>
+      ${row(`A (w = ${f(w)})`, 'cA', A, null, '')}
+      ${row('B substitution', 'cB', B, A, '∂h<sub>z</sub>/∂w')}
+      ${row('C′ ordinary income effect', 'cCp', Cp, B, '−z·∂z/∂I')}
+      ${row('C endowment effect', 'cC', C, Cp, '+T·∂z/∂I')}
+      <tr><td><b>Total</b></td><td></td><td></td><td><b>${fs(C[0] - A[0])}</b></td><td>work ${f(T - A[0])} → ${f(T - C[0])}</td></tr></table></div>`;
+    if (A[0] < T) {
+      const se = -A[0] / (2 * w), dzdI = 1 / (2 * w);
+      h += `<div class="box"><h3>The Slutsky equation with an endowment, at A</h3>
+      <div class="calc">dz/dw = <span class="cB">∂h<sub>z</sub>/∂w</span> <span class="cCp">− z·∂z/∂I</span> <span class="cC">+ T·∂z/∂I</span> = <span class="cB">SE</span> + (T − z)·∂z/∂I = SE + l·∂z/∂I</div>
+      <div class="calc">= <span class="cB">${fd(se)}</span> <span class="cCp">− ${f(A[0])}·${fd(dzdI)}</span> <span class="cC">+ ${f(T)}·${fd(dzdI)}</span> = <span class="cB">${fd(se)}</span> + ${f(T - A[0])}·${fd(dzdI)} = <b>${fd(se + (T - A[0]) * dzdI)}</b> &nbsp; (= −M/(2w²) = ${fd(-M / (2 * w * w))})</div>
+      <div class="tw"><table><tr><th>Part</th><th>Sign (leisure normal)</th><th>Meaning</th></tr>
+        <tr><td class="cB">Substitution ∂h<sub>z</sub>/∂w</td><td>−</td><td>leisure is dearer, so take less</td></tr>
+        <tr><td class="cCp">Ordinary income effect −z·∂z/∂I</td><td>−</td><td>as for any good whose price rises: poorer at a given income</td></tr>
+        <tr><td class="cC">Endowment effect +T·∂z/∂I</td><td>+</td><td>the T hours are worth more, so richer</td></tr>
+        <tr><td>Net income effect l·∂z/∂I</td><td>+</td><td>the consumer sells more hours than they keep as leisure, so on net gains</td></tr></table></div>
+      <p class="hint">"Leisure is normal" (∂z/∂I > 0) is an assumption; it holds for u = √c · √z. The net income effect works against the substitution effect, so labour supply can bend backwards. Here the total is −M/(2w²): the substitution effect wins whenever M > 0, and with M = 0 the effects cancel exactly.</p>
+      <p class="hint">Some exam questions write utility in hours worked instead, e.g. U = 2√x − l: choose "Labour: U = 2√x − l (2025 exam)" in the menu.</p></div>`;
+    }
+    return h;
+  }
+};
+
+// ===== model 'wk': U(x, l) = 2√x − l, bundles are (l, x) with hours worked on the horizontal axis =====
+const wkU = b => 2 * Math.sqrt(b[1]) - b[0];
+const wkDemand = (p, w, M) => { const x = (w / p) * (w / p), l = (p * x - M) / w; return l > 0 ? [l, x] : [0, M / p]; };
+const wkHicks = (p, w, u) => { const l = 2 * w / p - u; return l > 0 ? [l, (w / p) * (w / p)] : [0, u >= 0 ? (u / 2) * (u / 2) : NaN]; };
+
+LM.wk = {
+  name: 'Labour: U = 2√x − l (2025 exam)',
+  form: 'U(x, l) = 2√x − l<br>max U(x, l) s.t. px = wl + M',
+  note: 'x = consumption (price p), l = hours worked (wage w), M = non-labour income. Work is a "bad": utility falls by 1 for every hour. Keep the budget in hours worked and solve directly; no full income or time endowment is needed.',
+  steps: ['1 · Before', '2 · Substitution', '3 · Income effect (incl. endowment)'],
+  hint: 'With M = 0 labour supply is l = w/p: it rises one for one with the real wage.',
+  sliders: [['ctl', 'p', 'Price of consumption p', 0.1, 10, 0.1], ['ctl', 'M', 'Non-labour income M', 0, 50, 0.5],
+            ['new', 'w', 'Wage w', 0.1, 10, 0.1], ['new', 'w2', 'New wage w′', 0.1, 10, 0.1]],
+  compute(Q) {
+    const p = positive(Q.p), M = Math.max(0, Q.M), w = positive(Q.w), w2 = positive(Q.w2);
+    const A = wkDemand(p, w, M), u0 = wkU(A);
+    const B = wkHicks(p, w2, u0), MB = p * B[1] - w2 * B[0];   // non-labour income that keeps the consumer on u₀ at w′
+    const C = wkDemand(p, w2, M);
+    return { p, M, w, w2, A, B, C, u0, u1: wkU(C), MB };
+  },
+  draw(R, step) {
+    const xmax = Math.max(R.A[0], R.B[0], R.C[0], 0.5) * 1.45, ymax = Math.max(R.A[1], R.B[1], R.C[1], R.M / R.p) * 1.4;
+    const F = lsFrame(xmax, ymax, '<tspan font-style="italic">l</tspan> (hours worked)', '<tspan font-style="italic">x</tspan>');
+    const { X, Y } = F;
+    let s = F.s + '<g clip-path="url(#ls-clip)">';
+    const ic = (u, k, op) => F.curve(l => u + l >= 0 ? ((u + l) / 2) * ((u + l) / 2) : NaN, lsCol[k], `stroke-width="1.6" opacity="${op}"`);
+    const budget = (M, w, k, extra) => { const l1 = F.xmax * 1.05;
+      return `<line x1="${X(0)}" y1="${Y(M / R.p)}" x2="${X(l1)}" y2="${Y((M + w * l1) / R.p)}" style="stroke:${lsCol[k]}" ${extra}/>`; };
+    s += ic(R.u0, 'A', 0.55) + budget(R.M, R.w, 'A', 'stroke-width="2.4"');
+    if (step >= 2) s += budget(R.MB, R.w2, 'B', 'stroke-width="2.4" stroke-dasharray="8 5"');
+    if (step >= 3) s += ic(R.u1, 'C', 0.55) + budget(R.M, R.w2, 'C', 'stroke-width="2.4"');
+    s += '</g>';
+    s += F.endow(0, R.M / R.p, 9);              // E = (0, M/p): not working; both actual budget lines start here
+    if (step >= 3 && R.B[0] > 0 && R.C[0] > 0 && Math.abs(Y(R.B[1]) - Y(R.C[1])) < 1 && Math.abs(X(R.B[0]) - X(R.C[0])) > 12)
+      s += `<line x1="${X(R.C[0])}" y1="${Y(R.C[1])}" x2="${X(R.B[0])}" y2="${Y(R.B[1])}" style="stroke:var(--C)" stroke-width="3" opacity="0.45"/>` +
+        `<text x="${(X(R.B[0]) + X(R.C[0])) / 2}" y="${Y(R.C[1]) - 9}" font-size="12.5" text-anchor="middle" style="fill:var(--C)">B, C: same x</text>`;
+    s += F.points([['A', R.A, 'A', 1], ['B', R.B, 'B', 2], ['C', R.C, 'C', 3]].filter(q => step >= q[3]),
+                  { A: [9, 16], B: [9, 16], C: [-18, 16] });
+    if (step >= 2) s += F.harrow(R.A[0], R.B[0], 0, 'B', 'Substitution');
+    if (step >= 3) s += F.harrow(R.B[0], R.C[0], 1, 'C', 'Income') + F.harrow(R.A[0], R.C[0], 2, 'tot', 'Total');
+    return s;
+  },
+  caption(R, step) {
+    const up = R.w2 > R.w;
+    if (step === 1) return `<b>1 · Before.</b> At wage w = ${f(R.w)} the consumer chooses <b class="cA">A</b>: works l = ${f(R.A[0])} hours and consumes x = ${f(R.A[1])}. The budget line px = wl + M starts at the endowment point <b>E</b> = (0, M/p) = (0, ${f(R.M / R.p)}): not working at all. Indifference curves slope upwards because work is a bad: more hours must be paid for with more consumption.`;
+    if (step === 2) return `<b>2 · Substitution effect.</b> The wage ${up ? 'rises' : 'falls'} to w′ = ${f(R.w2)}: an hour of leisure now costs ${up ? 'more' : 'less'} consumption. With non-labour income adjusted to m(w′, u₀) = ${f(R.MB)} so that the consumer stays on u₀ (dashed line), they move to <b class="cB">B</b> and work l = ${f(R.B[0])}: ${up ? 'more' : 'fewer'} hours.`;
+    return `<b>3 · Income effect.</b> Non-labour income goes back to M = ${f(R.M)}, so the budget line pivots around <b>E</b>. The ${up ? 'higher' : 'lower'} wage makes the consumer ${up ? 'richer' : 'poorer'} on the hours they sell (this is the endowment effect and the ordinary income effect together), so they move to <b class="cC">C</b> and work l = ${f(R.C[0])}. Consumption x is the same at B and C: U is linear in l, so the whole income effect falls on hours. Total A → C: ${fs(R.C[0] - R.A[0])} hours.`;
+  },
+  flags(R) {
+    const corner = [['A', R.A], ['B', R.B], ['C', R.C]].filter(q => q[1][0] <= 0).map(q => q[0]);
+    let h = corner.length ? `<div class="w"><b>Corner at ${corner.join(', ')}</b>: l = 0, the consumer does not work (M ≥ w²/p).</div>` : '';
+    if (R.B[0] > 0 && R.C[0] > 0) h += `<div>B and C have the same consumption x = ${f(R.C[1])}: ∂D<sub>x</sub>/∂M = 0, so the whole income effect is on hours worked.</div>`;
+    return h;
+  },
+  legend: () =>
+    `<span><i class="sw" style="border-color:var(--A)"></i>Budget px = wl + M, from E</span>` +
+    `<span><i class="sw dash" style="border-color:var(--B)"></i>Compensated (w′, m(w′, u₀))</span>` +
+    `<span><i class="sw" style="border-color:var(--C)"></i>Budget px = w′l + M, from E</span>`,
+  calc(R) {
+    const { p, w, w2, M, A, B, C } = R;
+    let h = `<div class="box"><h3>Formulas for U(x, l) = 2√x − l</h3>${lsLines([
+      'Budget px = wl + M. Substitute x = (wl + M)/p and maximise over l: &nbsp; (1/√x)·(w/p) − 1 = 0 &nbsp; ⇒ &nbsp; √x = w/p',
+      'D<sub>x</sub>(p, w, M) = (w/p)², &nbsp;&nbsp; D<sub>l</sub>(p, w, M) = w/p − M/w &nbsp; (if M < w²/p; otherwise l = 0, x = M/p)',
+      'v(p, w, M) = w/p + M/w, &nbsp;&nbsp; λ = ∂v/∂M = 1/w',
+      'h<sub>x</sub>(p, w, ū) = (w/p)², &nbsp;&nbsp; h<sub>l</sub>(p, w, ū) = 2w/p − ū, &nbsp;&nbsp; m(p, w, ū) = w(ū − w/p) &nbsp; (the non-labour income needed to reach ū)',
+      'U is linear in l, so consumption has no income effect (∂D<sub>x</sub>/∂M = 0) and the whole income effect is on hours: ∂D<sub>l</sub>/∂M = −1/w.'])}</div>`;
+    h += `<h3>The three bundles (l = hours worked, x = consumption)</h3>`;
+    h += lsLines([
+      `<span class="cA">A</span>: x = (w/p)² = (${f(w)}/${f(p)})² = ${b(f(A[1]))}, &nbsp; l = w/p − M/w = ${f(w / p)} − ${f(M)}/${f(w)} = ${b(f(A[0]))}, &nbsp; u₀ = 2√${f(A[1])} − ${f(A[0])} = ${f(R.u0)}`,
+      `<span class="cB">B</span>: x = (w′/p)² = ${b(f(B[1]))}, &nbsp; l = h<sub>l</sub>(p, w′, u₀) = 2·${f(w2)}/${f(p)} − ${f(R.u0)} = ${b(f(B[0]))}, &nbsp; m(p, w′, u₀) = ${f(R.MB)}`,
+      `<span class="cC">C</span>: x = (w′/p)² = ${b(f(C[1]))}, &nbsp; l = w′/p − M/w′ = ${f(w2 / p)} − ${f(M)}/${f(w2)} = ${b(f(C[0]))}`,
+      `Compensation (the cheque) = m(p, w′, u₀) − M = ${f(R.MB)} − ${f(M)} = ${b(f(R.MB - M))}`]);
+    const row = (k, cls, x, prev, term) => `<tr><td class="${cls}"><b>${k}</b></td><td>${f(x[0])}</td><td>${f(x[1])}</td><td>${prev ? `<b>${fs(x[0] - prev[0])}</b>` : ''}</td><td>${term}</td></tr>`;
+    h += `<div class="tw"><table><tr><th>Step</th><th>Work l</th><th>Consumption x</th><th>Change in l</th><th>Term in the formula</th></tr>
+      ${row(`A (w = ${f(w)})`, 'cA', A, null, '')}
+      ${row('B substitution', 'cB', B, A, '∂h<sub>l</sub>/∂w')}
+      ${row('C income effect', 'cC', C, B, 'l·∂D<sub>l</sub>/∂M')}
+      <tr><td><b>Total</b></td><td></td><td></td><td><b>${fs(C[0] - A[0])}</b></td><td>work ${f(A[0])} → ${f(C[0])}</td></tr></table></div>`;
+    if (A[0] > 0) {
+      const se = 2 / p, dldM = -1 / w;
+      h += `<div class="box"><h3>The Slutsky equation for labour supply, at A</h3>
+      <div class="calc">∂D<sub>l</sub>/∂w = <span class="cB">∂h<sub>l</sub>/∂w</span> <span class="cC">+ l·∂D<sub>l</sub>/∂M</span></div>
+      <div class="calc">= <span class="cB">2/p</span> <span class="cC">+ l·(−1/w)</span> = <span class="cB">${fd(se)}</span> <span class="cC">+ ${f(A[0])}·(${fd(dldM)})</span> = <b>${fd(se + A[0] * dldM)}</b> &nbsp; (= 1/p + M/w² = ${fd(1 / p + M / (w * w))})</div>
+      <p class="hint">The income term has a plus sign because the consumer <i>sells</i> l hours at the wage w: a higher wage raises income by about l·dw. Compare an ordinary good, where the consumer buys x and a higher price lowers income by x·dp. With leisure z = T − l the same term is the ordinary income effect plus the endowment effect, −z·∂z/∂I + T·∂z/∂I = l·∂z/∂I.</p>
+      <p class="hint">Here the substitution effect (${fd(se)}) is larger than the income effect (${fd(A[0] * dldM)}), so labour supply slopes upwards. With M = 0, l = w/p.</p></div>`;
+    }
+    return h;
+  }
+};
+
+function lsUpdate() {
+  const m = LM[lsKind], Q = LSS[lsKind], R = m.compute(Q), step = Q.step;
+  const btns = [...document.querySelectorAll('#lsSteps button')];
+  btns.forEach((btn, i) => { btn.hidden = i >= m.steps.length; btn.textContent = m.steps[i] || ''; btn.classList.toggle('on', +btn.dataset.step === step); });
+  const ok = [...R.A, ...R.B, ...R.C].every(isFinite);
+  if (!ok) { $('lsCaption').innerHTML = '<span class="warn">These values give no well-defined solution. Try other parameters.</span>'; return; }
+  $('lsPlot').innerHTML = m.draw(R, step);
+  $('lsCaption').innerHTML = Math.abs(R.w2 - R.w) < 1e-12 ? 'The new wage equals the old wage. Change w′ to see a decomposition.' : m.caption(R, step);
+  $('lsFlags').innerHTML = m.flags(R);
+  $('lsLegend').innerHTML = m.legend();
+  $('lsCalc').innerHTML = m.calc(R);
+}
+
+function lsBuild() {
+  const m = LM[lsKind], Q = LSS[lsKind];
+  const box = { ctl: $('lsCtl'), new: $('lsNew') };
+  box.ctl.innerHTML = ''; box.new.innerHTML = '';
+  m.sliders.forEach(([where, k, label, lo, hi, st]) => slider(box[where], k, label, lo, hi, st, Q, null, lsUpdate));
+  $('lsHint').innerHTML = m.hint;
+  lsUpdate();
+}
+document.querySelectorAll('#lsSteps button').forEach(btn => btn.addEventListener('click', () => { LSS[lsKind].step = +btn.dataset.step; lsUpdate(); }));
+$('lsReset').addEventListener('click', () => { LSS[lsKind] = Object.assign({}, LS_DEF[lsKind]); lsBuild(); });
+lsBuild();
 </script>
 </body>
 </html>
